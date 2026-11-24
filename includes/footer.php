@@ -279,6 +279,6 @@
   </div>
 </div>
 <?php endif; ?>
-<script src="<?= BASE_URL ?>/assets/js/script.js"></script>
+<script src="<?= BASE_URL ?>/assets/js/script.php"></script>
 </body>
 </html>

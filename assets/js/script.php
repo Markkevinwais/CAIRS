@@ -1,5 +1,11 @@
+<?php
+declare(strict_types=1);
+
+header('Content-Type: application/javascript; charset=utf-8');
+header('X-Content-Type-Options: nosniff');
+?>
 /* ==========================================================================
-   CAIRS - assets/js/script.js
+   CAIRS - assets/js/script.php
    Plain JavaScript, no libraries. Each section is a small function that
    only runs if the element it needs exists on the current page.
 
