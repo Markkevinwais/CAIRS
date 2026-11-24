@@ -544,7 +544,7 @@ function renderHotlines(): string
 
 function mapAssets(): string
 {
-    return '<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"><script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>';
+    return '';
 }
 
 function mapCenter(): array

@@ -28,6 +28,9 @@ $removeOldAvatars = function (int $uid, string $keep = '') use ($uploadDir): voi
 };
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        session_write_close();
+    }
     echo json_encode([
         'full_name' => $u['full_name'],
         'email' => $u['email'],

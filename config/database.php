@@ -43,16 +43,30 @@ function pdo(): PDO
         return $pdo;
     }
 
-    ensureDatabaseExists();
-
     $dsn = 'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=utf8mb4';
-    $pdo = new PDO($dsn, DB_USER, DB_PASS, [
+    $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => false,
-    ]);
+        PDO::ATTR_TIMEOUT => 5,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+    } catch (PDOException $e) {
+        if ((int) $e->getCode() === 1049 || str_contains($e->getMessage(), '1049')) {
+            ensureDatabaseExists();
+            $pdo = new PDO($dsn, DB_USER, DB_PASS, $options);
+        } else {
+            throw new RuntimeException(
+                'CAIRS could not connect to MySQL. Make sure MySQL is running and DB_HOST/DB_USER/DB_PASS are correct. ' . $e->getMessage(),
+                0,
+                $e
+            );
+        }
+    }
+
     ensureSchema($pdo);
-    ensureDemoAccounts($pdo);
     return $pdo;
 }
 
@@ -90,6 +104,12 @@ function ensureDatabaseExists(): void
 
 function ensureSchema(PDO $pdo): void
 {
+    static $checked = false;
+    if ($checked) {
+        return;
+    }
+    $checked = true;
+
     try {
         $stmt = $pdo->query("SELECT v FROM settings WHERE k = 'schema_version' LIMIT 1");
         if ($stmt && $stmt->fetchColumn() === '1') {
@@ -112,6 +132,7 @@ function ensureSchema(PDO $pdo): void
         }
     }
 
+    ensureDemoAccounts($pdo);
     $stmt = $pdo->prepare('INSERT INTO settings (k, v) VALUES (?, ?) ON DUPLICATE KEY UPDATE v = VALUES(v)');
     $stmt->execute(['schema_version', '1']);
 }

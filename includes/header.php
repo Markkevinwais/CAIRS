@@ -70,6 +70,9 @@ $pageDesc = "{$site} - Community Assistance and Incident Reporting System for ba
 <meta property="og:title" content="<?= e($pageTitle) ?> | <?= e($site) ?>">
 <meta property="og:description" content="<?= e($pageDesc) ?>">
 <title><?= e($pageTitle) ?> | <?= e($site) ?></title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
 </head>

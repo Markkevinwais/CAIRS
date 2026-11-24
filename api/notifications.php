@@ -7,6 +7,9 @@ header('Cache-Control: no-store');
 header('Content-Type: application/json; charset=utf-8');
 
 $u = syncActiveUser();
+if (session_status() === PHP_SESSION_ACTIVE) {
+    session_write_close();
+}
 if (!$u) {
     http_response_code(401);
     echo json_encode(['error' => 'login']);

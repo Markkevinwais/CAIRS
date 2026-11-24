@@ -566,6 +566,32 @@ header('X-Content-Type-Options: nosniff');
 
 
   /* 10. MAPS (Leaflet is only loaded on pages that need it) -------------- */
+  var MAP_SELECTOR = '#map-picker, #map-view, #map-all, #dispatch-map, #settings-map-picker';
+
+  function ensureMapSkeleton(el) {
+    if (!el || el.querySelector(':scope > .map-skeleton')) return null;
+    var sk = document.createElement('div');
+    sk.className = 'map-skeleton';
+    sk.setAttribute('aria-hidden', 'true');
+    var pill = document.createElement('div');
+    pill.className = 'map-skeleton-pill';
+    var dot = document.createElement('span');
+    dot.className = 'map-skeleton-dot';
+    var txt = document.createElement('span');
+    txt.textContent = 'Loading map tiles...';
+    pill.appendChild(dot);
+    pill.appendChild(txt);
+    sk.appendChild(pill);
+    el.appendChild(sk);
+    return sk;
+  }
+
+  function primeMapSkeletons() {
+    $all(MAP_SELECTOR).forEach(function (el) {
+      if (!el._leafletMap) ensureMapSkeleton(el);
+    });
+  }
+
   function initMaps() {
     if (!window.L) return;
 
@@ -579,23 +605,52 @@ header('X-Content-Type-Options: nosniff');
     };
 
     function addTiles(map) {
-      L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      return L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
         maxZoom: 19,
         noWrap: true,
         bounds: worldBounds,
         attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
     }
+
+    function attachMapLifecycle(el, map, tileLayer) {
+      el._leafletMap = map;
+      var sk = el.querySelector(':scope > .map-skeleton') || ensureMapSkeleton(el);
+      var done = false;
+      function finishSkeleton() {
+        if (done) return;
+        done = true;
+        if (sk) {
+          sk.classList.add('is-done');
+          setTimeout(function () { if (sk.parentNode) sk.parentNode.removeChild(sk); }, 280);
+        }
+      }
+      if (tileLayer && tileLayer.once) tileLayer.once('load', finishSkeleton);
+      setTimeout(finishSkeleton, 1500);
+
+      setTimeout(function () {
+        if (map && map.invalidateSize) map.invalidateSize(false);
+      }, 120);
+
+      if (window.ResizeObserver && !el._mapResizeObs) {
+        var ro = new ResizeObserver(function () {
+          if (map && map.invalidateSize) map.invalidateSize(false);
+        });
+        ro.observe(el);
+        el._mapResizeObs = ro;
+      }
+    }
+
     function centerOf(el) { return [parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)]; }
 
     // 10a. Report form: click the map (or use GPS) to drop a pin
     var picker = document.getElementById('map-picker');
-    if (picker) {
+    if (picker && !picker._leafletMap) {
       var pickMap = L.map(picker, mapOpts).setView(centerOf(picker), picker.dataset.pin === '1' ? 17 : 14);
       var pin = null;
       var latInput = document.getElementById('latitude');
       var lngInput = document.getElementById('longitude');
-      addTiles(pickMap);
+      attachMapLifecycle(picker, pickMap, addTiles(pickMap));
 
       var setPin = function (lat, lng) {
         if (pin) pin.setLatLng([lat, lng]); else pin = L.marker([lat, lng]).addTo(pickMap);
@@ -617,19 +672,19 @@ header('X-Content-Type-Options: nosniff');
 
     // 10b. Report details: show the saved pin
     var view = document.getElementById('map-view');
-    if (view) {
+    if (view && !view._leafletMap) {
       var viewMap = L.map(view, mapOpts).setView(centerOf(view), 17);
-      addTiles(viewMap);
+      attachMapLifecycle(view, viewMap, addTiles(viewMap));
       L.marker(centerOf(view)).addTo(viewMap);
     }
 
     // 10c. Admin: every pinned report, colored by status
     var all = document.getElementById('map-all');
-    if (all) {
+    if (all && !all._leafletMap) {
       var allMap = L.map(all, mapOpts).setView(centerOf(all), 14);
       var points = JSON.parse(all.dataset.points);
       var markers = [];
-      addTiles(allMap);
+      attachMapLifecycle(all, allMap, addTiles(allMap));
 
       points.forEach(function (p) {
         var icon = L.divIcon({
@@ -652,9 +707,9 @@ header('X-Content-Type-Options: nosniff');
 
     // 10d. Admin Pin & Dispatch: click anywhere to drop/drag a dispatch pin + see existing incidents
     var dispatchEl = document.getElementById('dispatch-map');
-    if (dispatchEl) {
+    if (dispatchEl && !dispatchEl._leafletMap) {
       var dMap = L.map(dispatchEl, mapOpts).setView(centerOf(dispatchEl), dispatchEl.dataset.pin === '1' ? 16 : 14);
-      addTiles(dMap);
+      attachMapLifecycle(dispatchEl, dMap, addTiles(dMap));
       var dLatIn = document.getElementById('dispatch-lat');
       var dLngIn = document.getElementById('dispatch-lng');
       var dCoords = document.getElementById('dispatch-coords');
@@ -762,8 +817,7 @@ header('X-Content-Type-Options: nosniff');
       var sReadout = document.getElementById('settings-map-readout');
       var initCenter = centerOf(settingsEl);
       var sMap = L.map(settingsEl, mapOpts).setView(initCenter, 14);
-      addTiles(sMap);
-      settingsEl._leafletMap = sMap;
+      attachMapLifecycle(settingsEl, sMap, addTiles(sMap));
 
       var sPin = L.marker(initCenter, { draggable: true }).addTo(sMap);
       sPin.bindPopup('Default Barangay Center');
@@ -1075,7 +1129,29 @@ header('X-Content-Type-Options: nosniff');
       });
     }
 
+    function renderNotifSkeleton() {
+      listEl.textContent = '';
+      for (var i = 0; i < 3; i++) {
+        var item = document.createElement('div');
+        item.className = 'sk-notif-item';
+        var ic = document.createElement('div');
+        ic.className = 'sk-icon-box sk-shimmer';
+        var copy = document.createElement('div');
+        copy.className = 'sk-notif-copy';
+        var l1 = document.createElement('div');
+        l1.className = 'sk-line sk-shimmer';
+        var l2 = document.createElement('div');
+        l2.className = 'sk-line sk-line-sm sk-shimmer';
+        copy.appendChild(l1);
+        copy.appendChild(l2);
+        item.appendChild(ic);
+        item.appendChild(copy);
+        listEl.appendChild(item);
+      }
+    }
+
     function loadNotifications() {
+      if (!state.loaded) renderNotifSkeleton();
       fetch('/api/notifications', { credentials: 'same-origin', cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
@@ -1150,6 +1226,7 @@ header('X-Content-Type-Options: nosniff');
     var url = document.body.getAttribute('data-poll');
     if (!url || !window.fetch) return;
     var lastSos = null;
+    var pollTimer = null;
 
     function sosToast(d) {
       var body = createToast('error', 20000);
@@ -1159,9 +1236,20 @@ header('X-Content-Type-Options: nosniff');
       body.appendChild(link);
     }
 
+    function scheduleNext() {
+      clearTimeout(pollTimer);
+      pollTimer = setTimeout(poll, 15000);
+    }
+
     function poll() {
-      if (document.hidden) return;                                 // do nothing while the tab is in the background
-      fetch(url, { credentials: 'same-origin', cache: 'no-store' })
+      if (document.hidden) { scheduleNext(); return; }             // do nothing while the tab is in the background
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var abortTimer = ctrl ? setTimeout(function () { ctrl.abort(); }, 10000) : null;
+      fetch(url, {
+        credentials: 'same-origin',
+        cache: 'no-store',
+        signal: ctrl ? ctrl.signal : undefined
+      })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (!d) return;
@@ -1172,37 +1260,78 @@ header('X-Content-Type-Options: nosniff');
             lastSos = d.sos_last;
           }
         })
-        .catch(function () { /* offline or server busy: try again next time */ });
+        .catch(function () { /* offline or server busy: try again next time */ })
+        .finally(function () {
+          if (abortTimer) clearTimeout(abortTimer);
+          scheduleNext();
+        });
     }
-    poll();
-    setInterval(poll, 15000);
+
+    pollTimer = setTimeout(poll, 1400);
   }
 
 
   /* 12. SMOOTH IN-APP NAVIGATION (keeps sidebar/topbar persistent) -------- */
+  var leafletQueue = [];
+  var leafletReadyState = { css: false, js: false };
   function ensureLeaflet(cb) {
-    if (window.L) { cb(); return; }
-    var needsMap = $('#map-picker') || $('#map-view') || $('#map-all') || $('#dispatch-map') || $('#settings-map-picker');
+    var needsMap = $(MAP_SELECTOR);
     if (!needsMap) { cb(); return; }
 
+    primeMapSkeletons();
+    leafletQueue.push(cb);
+
+    function flushIfReady() {
+      if (!window.L || !leafletReadyState.css) return;
+      var q = leafletQueue.splice(0, leafletQueue.length);
+      q.forEach(function (fn) { try { fn(); } catch (err) { if (window.console && console.error) console.error(err); } });
+    }
+
     var cssHref = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
-    if (!document.querySelector('link[href="' + cssHref + '"]')) {
-      var link = document.createElement('link');
+    var link = document.querySelector('link[href="' + cssHref + '"]');
+    if (!link) {
+      link = document.createElement('link');
       link.rel = 'stylesheet';
       link.href = cssHref;
+      link.crossOrigin = 'anonymous';
       document.head.appendChild(link);
+    }
+    if (link.dataset.ready === '1' || Boolean(link.sheet)) {
+      leafletReadyState.css = true;
+    } else if (!link.dataset.watching) {
+      link.dataset.watching = '1';
+      var markCssDone = function () {
+        link.dataset.ready = '1';
+        leafletReadyState.css = true;
+        flushIfReady();
+      };
+      link.addEventListener('load', markCssDone, { once: true });
+      link.addEventListener('error', markCssDone, { once: true });
+      setTimeout(markCssDone, 1600);
+    }
+
+    if (window.L) {
+      leafletReadyState.js = true;
+      flushIfReady();
+      return;
     }
 
     var jsSrc = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js';
-    var existing = document.querySelector('script[src="' + jsSrc + '"]');
-    if (existing) {
-      existing.addEventListener('load', cb, { once: true });
-      return;
+    var script = document.querySelector('script[src="' + jsSrc + '"]');
+    if (!script) {
+      script = document.createElement('script');
+      script.src = jsSrc;
+      script.async = true;
+      script.crossOrigin = 'anonymous';
+      document.head.appendChild(script);
     }
-    var script = document.createElement('script');
-    script.src = jsSrc;
-    script.onload = cb;
-    document.head.appendChild(script);
+    if (!script.dataset.watching) {
+      script.dataset.watching = '1';
+      script.addEventListener('load', function () {
+        leafletReadyState.js = true;
+        flushIfReady();
+      }, { once: true });
+    }
   }
 
   function runMainScripts(mainEl) {
@@ -1510,11 +1639,113 @@ header('X-Content-Type-Options: nosniff');
     initPrint();
     initModernSelects();
     initAdminWorkspace();
-    if (isSwap) {
-      ensureLeaflet(initMaps);
-    } else {
-      initMaps();
+    ensureLeaflet(initMaps);
+  }
+
+  function skEl(cls) {
+    var d = document.createElement('div');
+    if (cls) d.className = cls;
+    return d;
+  }
+
+  function buildPageSkeleton(pathname) {
+    var p = String(pathname || '').toLowerCase();
+    var root = skEl('sk-page');
+    root.setAttribute('aria-hidden', 'true');
+
+    var head = skEl('sk-head');
+    var copy = skEl('sk-head-copy');
+    copy.appendChild(skEl('sk-line sk-line-lg sk-shimmer'));
+    copy.appendChild(skEl('sk-line sk-line-md sk-shimmer'));
+    var actions = skEl('sk-head-actions');
+    actions.appendChild(skEl('sk-btn sk-shimmer'));
+    head.appendChild(copy);
+    head.appendChild(actions);
+    root.appendChild(head);
+
+    if (/dispatch|analytics|report\.php|report_details|sos\.php/.test(p)) {
+      var twoMap = skEl('sk-two');
+      var leftMap = skEl('sk-card');
+      leftMap.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+      leftMap.appendChild(skEl('sk-map-frame sk-shimmer'));
+      var rightForm = skEl('sk-card');
+      for (var rf = 0; rf < 5; rf++) {
+        rightForm.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+        rightForm.appendChild(skEl('sk-input sk-shimmer'));
+      }
+      twoMap.appendChild(leftMap);
+      twoMap.appendChild(rightForm);
+      root.appendChild(twoMap);
+      return root;
     }
+
+    if (/settings\.php/.test(p)) {
+      var twoSet = skEl('sk-two is-settings');
+      var navCard = skEl('sk-card');
+      for (var ns = 0; ns < 5; ns++) navCard.appendChild(skEl('sk-line sk-shimmer'));
+      var bodyCard = skEl('sk-card');
+      bodyCard.appendChild(skEl('sk-line sk-line-md sk-shimmer'));
+      for (var bs = 0; bs < 4; bs++) {
+        bodyCard.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+        bodyCard.appendChild(skEl('sk-input sk-shimmer'));
+      }
+      twoSet.appendChild(navCard);
+      twoSet.appendChild(bodyCard);
+      root.appendChild(twoSet);
+      return root;
+    }
+
+    if (/reports|residents|volunteers|assigned_reports|announcements|categories/.test(p)) {
+      var filters = skEl('sk-filters');
+      filters.appendChild(skEl('sk-input is-wide sk-shimmer'));
+      filters.appendChild(skEl('sk-input sk-shimmer'));
+      filters.appendChild(skEl('sk-input sk-shimmer'));
+      root.appendChild(filters);
+
+      var tCard = skEl('sk-card');
+      var rows = skEl('sk-table-rows');
+      for (var r = 0; r < 6; r++) {
+        var row = skEl('sk-table-row');
+        var uCell = skEl('sk-user');
+        uCell.appendChild(skEl('sk-avatar sk-shimmer'));
+        uCell.appendChild(skEl('sk-line sk-shimmer'));
+        row.appendChild(uCell);
+        row.appendChild(skEl('sk-line sk-shimmer'));
+        row.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+        row.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+        rows.appendChild(row);
+      }
+      tCard.appendChild(rows);
+      root.appendChild(tCard);
+      return root;
+    }
+
+    var stats = skEl('sk-stats');
+    for (var s = 0; s < 4; s++) {
+      var sc = skEl('sk-stat-card');
+      var top = skEl('sk-stat-top');
+      top.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+      top.appendChild(skEl('sk-icon-box sk-shimmer'));
+      sc.appendChild(top);
+      sc.appendChild(skEl('sk-num sk-shimmer'));
+      sc.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+      stats.appendChild(sc);
+    }
+    root.appendChild(stats);
+
+    var dashCard = skEl('sk-card');
+    var dRows = skEl('sk-table-rows');
+    for (var d = 0; d < 4; d++) {
+      var dRow = skEl('sk-table-row');
+      dRow.appendChild(skEl('sk-line sk-shimmer'));
+      dRow.appendChild(skEl('sk-line sk-shimmer'));
+      dRow.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+      dRow.appendChild(skEl('sk-line sk-line-sm sk-shimmer'));
+      dRows.appendChild(dRow);
+    }
+    dashCard.appendChild(dRows);
+    root.appendChild(dashCard);
+    return root;
   }
 
   function initSpaNavigation() {
@@ -1523,13 +1754,33 @@ header('X-Content-Type-Options: nosniff');
 
     var navSeq = 0;
     var lastSpaPathQuery = window.location.pathname + window.location.search;
+    var mainWrap = $('.main');
+    var progressBar = mainWrap ? $('.spa-progress', mainWrap) : null;
+    if (mainWrap && !progressBar) {
+      progressBar = document.createElement('div');
+      progressBar.className = 'spa-progress';
+      progressBar.setAttribute('aria-hidden', 'true');
+      var barInner = document.createElement('div');
+      barInner.className = 'spa-progress-bar';
+      progressBar.appendChild(barInner);
+      mainWrap.appendChild(progressBar);
+    }
 
     function navigate(url, push) {
       var parsed;
       try { parsed = new URL(url, window.location.href); } catch (_) { window.location.href = url; return; }
       var seq = ++navSeq;
       var main = $('#main');
-      if (main) main.style.opacity = '0.65';
+      if (progressBar) progressBar.classList.add('is-active');
+      if (main) main.style.opacity = '0.72';
+
+      var skTimer = setTimeout(function () {
+        if (seq !== navSeq || !main) return;
+        main.style.opacity = '';
+        main.setAttribute('aria-busy', 'true');
+        main.textContent = '';
+        main.appendChild(buildPageSkeleton(parsed.pathname));
+      }, 120);
 
       fetch(parsed.href, {
         credentials: 'same-origin',
@@ -1540,6 +1791,7 @@ header('X-Content-Type-Options: nosniff');
           return r.text().then(function (html) { return { html: html, finalUrl: r.url || parsed.href }; });
         })
         .then(function (res) {
+          clearTimeout(skTimer);
           if (!res || seq !== navSeq) return;
           var doc = new DOMParser().parseFromString(res.html, 'text/html');
           if (!doc.body || !doc.body.classList.contains('app')) {
@@ -1561,8 +1813,10 @@ header('X-Content-Type-Options: nosniff');
           $all('link[href*="leaflet"], script[src*="leaflet"]', newMain).forEach(function (el) { el.remove(); });
 
           document.title = doc.title;
+          main.removeAttribute('aria-busy');
           main.innerHTML = newMain.innerHTML;
           main.style.opacity = '';
+          if (progressBar) progressBar.classList.remove('is-active');
 
           // Sync sidebar nav active link & unread badge in-place to animate active pill
           var newNav = $('.sidebar nav', doc);
@@ -1612,7 +1866,12 @@ header('X-Content-Type-Options: nosniff');
           }
         })
         .catch(function () {
-          if (main) main.style.opacity = '';
+          clearTimeout(skTimer);
+          if (progressBar) progressBar.classList.remove('is-active');
+          if (main) {
+            main.removeAttribute('aria-busy');
+            main.style.opacity = '';
+          }
           window.location.href = parsed.href;
         });
     }
