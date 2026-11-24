@@ -31,17 +31,16 @@ const pageDesc = `${site} - Community Assistance and Incident Reporting System f
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#030a14">
+<meta name="theme-color" content="#0f1b2d">
 <meta name="csrf-token" content="<%= csrfToken %>">
 <meta name="description" content="<%= pageDesc %>">
 <meta property="og:title" content="<%= title %> | <%= site %>">
 <meta property="og:description" content="<%= pageDesc %>">
 <title><%= title %> | <%= site %></title>
-<link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<%= BASE_URL %>/assets/css/style.css">
 </head>
 <body class="<%= u ? 'app role-' + u.role : 'public' %>"<%- u ? ` data-poll="${BASE_URL}/api/poll.php"` : '' %>>
-<div class="bg-fx" aria-hidden="true"><span class="orb o1"></span><span class="orb o2"></span></div>
 <% if (u) { %>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="sidebar-overlay" aria-hidden="true"></div>
@@ -171,6 +170,7 @@ const pageDesc = `${site} - Community Assistance and Incident Reporting System f
 <% if (u.role === 'resident' && current !== 'resident/sos.php') { %>
   <a class="sos-fab" href="<%= BASE_URL %>/resident/sos.php" aria-label="Emergency SOS"><span class="sos-ring"></span><%- icon('siren', 22) %><b>SOS</b></a>
 <% } %>
+<div class="main-scroll">
 <% } %>
 <main class="content" id="main">
   <% if (flash) { %>

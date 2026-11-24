@@ -1027,26 +1027,26 @@
       if (val === 'in_progress') return { icon: 'loader', tone: 'violet' };
       if (val === 'resolved') return { icon: 'check-circle', tone: 'emerald' };
       if (val === 'rejected') return { icon: 'x-circle', tone: 'rose' };
-      return { icon: 'layers', tone: 'cyan' };
+      return { icon: 'layers', tone: 'primary' };
     }
     if (name === 'priority') {
       if (val === 'low') return { icon: 'arrow-down', tone: 'emerald' };
       if (val === 'medium') return { icon: 'minus', tone: 'amber' };
       if (val === 'high') return { icon: 'arrow-up', tone: 'rose' };
-      return { icon: 'layers', tone: 'cyan' };
+      return { icon: 'layers', tone: 'primary' };
     }
     if (name === 'level') {
       if (val === 'info') return { icon: 'info', tone: 'sky' };
       if (val === 'warning') return { icon: 'alert-triangle', tone: 'amber' };
       if (val === 'critical') return { icon: 'siren', tone: 'rose' };
-      return { icon: 'info', tone: 'cyan' };
+      return { icon: 'info', tone: 'primary' };
     }
     if (name === 'volunteer_id') {
       if (!val || val === '0') return { icon: 'user-x', tone: 'muted' };
-      return { icon: 'user-check', tone: 'cyan' };
+      return { icon: 'user-check', tone: 'primary' };
     }
     if (name === 'category' || name === 'category_id') {
-      if (!val || val === '0') return { icon: 'layers', tone: 'cyan' };
+      if (!val || val === '0') return { icon: 'layers', tone: 'primary' };
       if (/fire|blaze|burn/.test(txt)) return { icon: 'flame', tone: 'rose' };
       if (/flood|water|drain|rain|typhoon/.test(txt)) return { icon: 'droplet', tone: 'sky' };
       if (/theft|crime|rob|burglar|security/.test(txt)) return { icon: 'shield-alert', tone: 'amber' };
@@ -1055,9 +1055,9 @@
       if (/noise|disturb|loud|sound/.test(txt)) return { icon: 'volume-2', tone: 'violet' };
       if (/garbage|sanit|trash|waste|clean/.test(txt)) return { icon: 'trash', tone: 'emerald' };
       if (/light|electric|power|wire|lamp/.test(txt)) return { icon: 'zap', tone: 'amber' };
-      return { icon: 'tag', tone: 'cyan' };
+      return { icon: 'tag', tone: 'primary' };
     }
-    return { icon: 'layers', tone: 'cyan' };
+    return { icon: 'layers', tone: 'primary' };
   }
 
   var selectGlobalsBound = false;
@@ -1382,6 +1382,8 @@
             var target = document.getElementById(dest.hash.slice(1));
             if (target) target.scrollIntoView({ behavior: 'smooth' });
           } else {
+            var scroller = $('.main-scroll');
+            if (scroller) scroller.scrollTop = 0;
             window.scrollTo(0, 0);
           }
         })
@@ -1610,19 +1612,19 @@
 
       if (val.length < 6) {
         pwFill.style.width = '20%';
-        pwFill.style.background = '#fb7185';
+        pwFill.style.background = '#dc2626';
         pwHint.textContent = 'Too short \u2014 add at least ' + (6 - val.length) + ' more character(s)';
       } else if (score <= 2) {
         pwFill.style.width = '48%';
-        pwFill.style.background = '#fbbf24';
+        pwFill.style.background = '#d97706';
         pwHint.textContent = 'Fair strength \u2014 consider adding numbers or symbols';
       } else if (score <= 3) {
         pwFill.style.width = '76%';
-        pwFill.style.background = '#22d3ee';
+        pwFill.style.background = '#047857';
         pwHint.textContent = 'Good password strength';
       } else {
         pwFill.style.width = '100%';
-        pwFill.style.background = '#34d399';
+        pwFill.style.background = '#16a34a';
         pwHint.textContent = 'Strong password';
       }
     }
@@ -1738,7 +1740,7 @@
       var w = cropCanvas.width;
       var h = cropCanvas.height;
       ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#020812';
+      ctx.fillStyle = '#f1f5f9';
       ctx.fillRect(0, 0, w, h);
 
       var zoom = parseFloat(cropZoom ? cropZoom.value : '1') || 1;
