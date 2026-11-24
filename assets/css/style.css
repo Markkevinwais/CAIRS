@@ -119,7 +119,7 @@ body.public .content{max-width:none;margin:0;padding:0}
 .sidebar-overlay.is-visible{opacity:1;visibility:visible}
 
 /* 6. HEADER (top bar) ----------------------------------------------------- */
-.topbar{position:relative;flex:none;z-index:40;display:flex;align-items:center;gap:16px;min-height:60px;padding:10px 32px;background:rgba(255,255,255,.84);backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid rgba(15,23,42,.08)}
+.topbar{position:relative;flex:none;z-index:70;display:flex;align-items:center;gap:16px;min-height:60px;padding:10px 32px;background:rgba(255,255,255,.84);backdrop-filter:saturate(180%) blur(14px);-webkit-backdrop-filter:saturate(180%) blur(14px);border-bottom:1px solid rgba(15,23,42,.08)}
 @supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){.topbar{background:var(--surface)}}
 .nav-toggle{display:none;place-items:center;width:38px;height:38px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--surface);color:var(--text);cursor:pointer;transition:background .15s var(--ease),transform .15s var(--ease)}
 .nav-toggle:hover{background:var(--surface-hover)} .nav-toggle:active{transform:scale(.95)}
@@ -334,6 +334,11 @@ td a{font-weight:600}
 .pin:hover span{transform:rotate(-45deg) scale(1.12)}
 .pin-pending{--tone:var(--warning)} .pin-assigned{--tone:var(--info)} .pin-in_progress{--tone:var(--progress)}
 .pin-resolved{--tone:var(--success)} .pin-rejected{--tone:var(--danger)}
+.pin-dispatch span{width:28px;height:28px;--tone:var(--primary);border-width:3px;box-shadow:0 0 0 5px rgba(var(--primary-rgb),.24),0 6px 14px rgba(15,23,42,.35)}
+.dispatch-map-btns{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.dispatch-coords{font-size:.82rem;font-weight:600;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.dispatch-coords.is-pinned{color:var(--primary-dark)}
+.map-card.needs-pin{border-color:var(--danger);box-shadow:0 0 0 3px rgba(220,38,38,.12)}
 .leaflet-container{font-family:var(--font)}
 .leaflet-bar{border:1px solid var(--border)!important;border-radius:10px!important;box-shadow:var(--shadow-md)!important;overflow:hidden}
 .leaflet-bar a{width:34px!important;height:34px!important;line-height:34px!important;color:var(--text)!important;background:rgba(255,255,255,.94)!important;border-bottom:1px solid var(--border)!important;font-weight:600;transition:background .15s,color .15s}

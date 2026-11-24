@@ -47,6 +47,7 @@ $menus = [
         ['admin/categories.php', 'Categories', 'tag', 'Tags'],
         ['admin/analytics.php', 'Analytics', 'chart', 'Stats'],
         ['admin/analytics.php#incident-map', 'Incident map', 'pin', 'Map'],
+        ['admin/dispatch.php', 'Pin & Dispatch', 'radar', 'Dispatch'],
         ['admin/settings.php', 'Settings', 'sliders', 'Settings'],
     ],
     'volunteer' => [

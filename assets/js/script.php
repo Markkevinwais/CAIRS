@@ -649,6 +649,110 @@ header('X-Content-Type-Options: nosniff');
       });
       if (markers.length) allMap.fitBounds(L.featureGroup(markers).getBounds().pad(0.2), { maxZoom: 16 });
     }
+
+    // 10d. Admin Pin & Dispatch: click anywhere to drop/drag a dispatch pin + see existing incidents
+    var dispatchEl = document.getElementById('dispatch-map');
+    if (dispatchEl) {
+      var dMap = L.map(dispatchEl, mapOpts).setView(centerOf(dispatchEl), dispatchEl.dataset.pin === '1' ? 16 : 14);
+      addTiles(dMap);
+      var dLatIn = document.getElementById('dispatch-lat');
+      var dLngIn = document.getElementById('dispatch-lng');
+      var dCoords = document.getElementById('dispatch-coords');
+      var dCard = document.getElementById('dispatch-map-card');
+      var dPin = null;
+
+      try {
+        var existingPts = JSON.parse(dispatchEl.dataset.points || '[]');
+        existingPts.forEach(function (p) {
+          var pIcon = L.divIcon({
+            className: 'pin pin-' + p.key,
+            html: '<span></span>',
+            iconSize: [20, 20], iconAnchor: [10, 20], popupAnchor: [0, -20]
+          });
+          var box = document.createElement('div');
+          var link = document.createElement('a');
+          var st = document.createElement('div');
+          link.href = p.url;
+          link.textContent = p.ref + ' ' + p.title;
+          st.textContent = p.status;
+          box.appendChild(link);
+          box.appendChild(st);
+          L.marker([p.lat, p.lng], { icon: pIcon }).addTo(dMap).bindPopup(box);
+        });
+      } catch (err) {}
+
+      var dispatchIcon = L.divIcon({
+        className: 'pin pin-dispatch',
+        html: '<span></span>',
+        iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30]
+      });
+
+      function updateDispatchPin(lat, lng, pan) {
+        if (!dPin) {
+          dPin = L.marker([lat, lng], { icon: dispatchIcon, draggable: true, zIndexOffset: 1000 }).addTo(dMap);
+          dPin.bindPopup('Dispatch target (drag to adjust)');
+          dPin.on('dragend', function () {
+            var pos = dPin.getLatLng();
+            updateDispatchPin(pos.lat, pos.lng, false);
+          });
+        } else {
+          dPin.setLatLng([lat, lng]);
+        }
+        if (dLatIn) dLatIn.value = lat.toFixed(7);
+        if (dLngIn) dLngIn.value = lng.toFixed(7);
+        if (dCoords) {
+          dCoords.textContent = 'Pinned: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+          dCoords.classList.add('is-pinned');
+        }
+        if (dCard) dCard.classList.remove('needs-pin');
+        if (pan) dMap.setView([lat, lng], Math.max(dMap.getZoom(), 16));
+      }
+
+      if (dispatchEl.dataset.pin === '1') {
+        var initCoords = centerOf(dispatchEl);
+        updateDispatchPin(initCoords[0], initCoords[1], false);
+      }
+
+      dMap.on('click', function (ev) {
+        updateDispatchPin(ev.latlng.lat, ev.latlng.lng, false);
+      });
+
+      var dLocate = document.getElementById('dispatch-locate');
+      if (dLocate) {
+        dLocate.addEventListener('click', function () {
+          if (!navigator.geolocation) { showToast('Your browser does not support location.', 'error'); return; }
+          navigator.geolocation.getCurrentPosition(function (pos) {
+            updateDispatchPin(pos.coords.latitude, pos.coords.longitude, true);
+          }, function () {
+            showToast('Could not get your location. Click the map instead.', 'error');
+          });
+        });
+      }
+
+      var dClear = document.getElementById('dispatch-clear');
+      if (dClear) {
+        dClear.addEventListener('click', function () {
+          if (dPin) { dMap.removeLayer(dPin); dPin = null; }
+          if (dLatIn) dLatIn.value = '';
+          if (dLngIn) dLngIn.value = '';
+          if (dCoords) {
+            dCoords.textContent = 'No pin placed yet \u2014 click the map';
+            dCoords.classList.remove('is-pinned');
+          }
+        });
+      }
+
+      var dForm = document.getElementById('dispatch-form');
+      if (dForm) {
+        dForm.addEventListener('submit', function (ev) {
+          if (!dLatIn || !dLngIn || !dLatIn.value || !dLngIn.value) {
+            ev.preventDefault();
+            if (dCard) dCard.classList.add('needs-pin');
+            showToast('Click on the map to drop a pin before dispatching.', 'error');
+          }
+        });
+      }
+    }
   }
 
 
@@ -744,6 +848,9 @@ header('X-Content-Type-Options: nosniff');
 
   var refreshNotifPopover = function () {};
 
+  var closeNotifPopover = function () {};
+  var closeSidebarPopover = function () {};
+
   function initNotificationPopover() {
     var bellBtn = $('#notif-bell-btn');
     var popover = $('#notif-popover');
@@ -761,6 +868,8 @@ header('X-Content-Type-Options: nosniff');
       popover.hidden = !open;
       bellBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
       if (open) {
+        closeActiveSelect(false);
+        closeSidebarPopover();
         $all('.dropdown.open').forEach(function (d) {
           d.classList.remove('open');
           var b = $('[data-dropdown]', d);
@@ -769,6 +878,7 @@ header('X-Content-Type-Options: nosniff');
         loadNotifications();
       }
     }
+    closeNotifPopover = function () { setOpen(false); };
 
     function apiPost(endpoint, payload) {
       return fetch(endpoint, {
@@ -1013,7 +1123,7 @@ header('X-Content-Type-Options: nosniff');
   /* 12. SMOOTH IN-APP NAVIGATION (keeps sidebar/topbar persistent) -------- */
   function ensureLeaflet(cb) {
     if (window.L) { cb(); return; }
-    var needsMap = $('#map-picker') || $('#map-view') || $('#map-all');
+    var needsMap = $('#map-picker') || $('#map-view') || $('#map-all') || $('#dispatch-map');
     if (!needsMap) { cb(); return; }
 
     var cssHref = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
@@ -1116,7 +1226,7 @@ header('X-Content-Type-Options: nosniff');
       if (!activeSelectCtx) return;
       if (activeSelectCtx.wrap.contains(e.target) || activeSelectCtx.menu.contains(e.target)) return;
       closeActiveSelect(false);
-    });
+    }, true);
     document.addEventListener('keydown', function (e) {
       if (!activeSelectCtx) return;
       if (e.key === 'Escape') {
@@ -1489,8 +1599,6 @@ header('X-Content-Type-Options: nosniff');
 
 
   /* 13. SIDEBAR PROFILE POPOVER & PROFILE MODAL DIALOG ------------------- */
-  var closeSidebarPopover = function () {};
-
   function initSidebarProfilePopover() {
     var btn = document.getElementById('sidebar-user-btn');
     var pop = document.getElementById('sidebar-profile-popover');
@@ -1499,6 +1607,10 @@ header('X-Content-Type-Options: nosniff');
     function setOpen(open) {
       pop.hidden = !open;
       btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (open) {
+        closeActiveSelect(false);
+        closeNotifPopover();
+      }
     }
 
     closeSidebarPopover = function () { setOpen(false); };

@@ -586,7 +586,7 @@ function renderIncidentMap(string $title = 'Incident map', int $height = 420): s
     $body = !$pts
         ? '<p class="empty">No reports have a map pin yet.</p>'
         : mapAssets() . '<div id="map-all" class="map" style="height:' . $height . 'px" data-lat="' . $mlat . '" data-lng="' . $mlng . '" data-points="' . e(json_encode($pts)) . '"></div>';
-    return '<section class="card map-card" id="incident-map"><div class="map-head"><div><h2>' . e($title) . '</h2><p class="muted">' . count($pts) . ' report' . (count($pts) === 1 ? '' : 's') . ' with a map pin</p></div><div class="legend">' . $legend . '</div></div>' . $body . '</section>';
+    return '<section class="card map-card" id="incident-map"><div class="map-head"><div><h2>' . e($title) . '</h2><p class="muted">' . count($pts) . ' report' . (count($pts) === 1 ? '' : 's') . ' with a map pin</p></div><div class="legend">' . $legend . '<a class="btn small" href="' . BASE_URL . '/admin/dispatch.php">' . icon('radar', 15) . ' Pin &amp; Dispatch</a></div></div>' . $body . '</section>';
 }
 
 function renderAlerts(int $userId): string
