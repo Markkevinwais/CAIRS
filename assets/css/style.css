@@ -1871,3 +1871,146 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 @media (prefers-reduced-motion:reduce){
   .spa-progress-bar,.sk-shimmer,.map-skeleton-dot{animation:none!important}
 }
+
+/* 30. MAP PLACE & COORDINATE SEARCH + LOCATING STATE -------------------- */
+.map-search-bar{
+  position:relative;
+  z-index:950;
+  padding:10px 16px;
+  border-bottom:1px solid var(--border);
+  background:#f8fafc;
+}
+.map-search-row{
+  display:flex;
+  align-items:center;
+  gap:8px;
+}
+.map-search-field{
+  position:relative;
+  flex:1;
+  min-width:0;
+  display:flex;
+  align-items:center;
+}
+.map-search-ic{
+  position:absolute;
+  left:11px;
+  color:#334155;
+  pointer-events:none;
+  display:inline-flex;
+  align-items:center;
+}
+.map-search-input{
+  width:100%;
+  height:38px;
+  margin:0!important;
+  padding:0 34px 0 34px!important;
+  border:1px solid var(--border);
+  border-radius:var(--radius-sm);
+  background:var(--surface);
+  color:#0f172a;
+  font-size:.86rem;
+  font-weight:500;
+  transition:border-color .15s,box-shadow .15s;
+}
+.map-search-input::placeholder{color:#475569;opacity:1}
+.map-search-input:focus{
+  outline:none;
+  border-color:var(--primary);
+  box-shadow:0 0 0 3px rgba(var(--primary-rgb),.14);
+}
+.map-search-clear{
+  position:absolute;
+  right:6px;
+  width:26px;
+  height:26px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border:0;
+  border-radius:6px;
+  background:transparent;
+  color:#334155;
+  cursor:pointer;
+}
+.map-search-clear:hover{background:#e2e8f0;color:#0f172a}
+.map-search-clear[hidden]{display:none}
+.map-search-btn{height:38px;white-space:nowrap;flex:none}
+.map-search-results{
+  position:absolute;
+  left:16px;
+  right:16px;
+  top:calc(100% - 4px);
+  z-index:960;
+  max-height:240px;
+  overflow-y:auto;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:var(--surface);
+  box-shadow:var(--shadow-lg);
+  padding:4px;
+}
+.map-search-results[hidden]{display:none}
+.map-search-item{
+  width:100%;
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  padding:9px 11px;
+  border:0;
+  border-radius:8px;
+  background:transparent;
+  text-align:left;
+  cursor:pointer;
+  color:#0f172a;
+  transition:background .12s;
+}
+.map-search-item:hover,.map-search-item.is-active{background:#f1f5f9}
+.map-search-item-ic{
+  width:28px;
+  height:28px;
+  border-radius:8px;
+  background:#ecfdf5;
+  color:var(--primary-dark);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  flex:none;
+  margin-top:1px;
+}
+.map-search-item-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.map-search-item-title{
+  font-size:.86rem;
+  font-weight:700;
+  color:#0f172a;
+  line-height:1.25;
+}
+.map-search-item-sub{
+  font-size:.76rem;
+  color:#334155;
+  line-height:1.3;
+  overflow-wrap:anywhere;
+}
+.map-search-item-coords{
+  font-size:.73rem;
+  font-weight:600;
+  color:var(--primary-dark);
+  font-variant-numeric:tabular-nums;
+  white-space:nowrap;
+  align-self:center;
+}
+.map-search-state{
+  padding:11px 12px;
+  font-size:.83rem;
+  font-weight:500;
+  color:#334155;
+  text-align:center;
+}
+.btn.is-locating{opacity:.78;cursor:wait}
+.btn.is-locating svg{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (max-width:560px){
+  .map-search-bar{padding:9px 12px}
+  .map-search-results{left:12px;right:12px}
+  .map-search-item-coords{display:none}
+}

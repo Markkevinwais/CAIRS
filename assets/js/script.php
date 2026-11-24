@@ -643,6 +643,326 @@ header('X-Content-Type-Options: nosniff');
 
     function centerOf(el) { return [parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)]; }
 
+    function requestCurrentLocation(btn, onFound) {
+      if (!window.isSecureContext) {
+        showToast('Location detection requires HTTPS. Search a place above or click the map instead.', 'error');
+        return;
+      }
+      if (!navigator.geolocation) {
+        showToast('Your browser does not support location. Search a place above or click the map.', 'error');
+        return;
+      }
+      if (btn && btn.dataset.locating === '1') return;
+
+      var savedNodes = btn ? Array.prototype.slice.call(btn.childNodes) : [];
+      if (btn) {
+        btn.dataset.locating = '1';
+        btn.disabled = true;
+        btn.classList.add('is-locating');
+        btn.textContent = '';
+        btn.appendChild(createSvgIcon('loader', 15));
+        btn.appendChild(document.createTextNode(' Locating...'));
+      }
+
+      function restoreBtn() {
+        if (!btn) return;
+        btn.dataset.locating = '0';
+        btn.disabled = false;
+        btn.classList.remove('is-locating');
+        btn.textContent = '';
+        savedNodes.forEach(function (n) { btn.appendChild(n); });
+      }
+
+      function handleFail(err) {
+        restoreBtn();
+        var code = err && err.code;
+        var msg = 'Could not detect your location. Search a place above or click the map.';
+        if (code === 1) {
+          msg = 'Location access was blocked. Allow Location in browser/site settings, or search above.';
+        } else if (code === 2) {
+          msg = 'Location unavailable on this device/browser (check OS Location or browser Shields). Search a place or click the map.';
+        } else if (code === 3) {
+          msg = 'Location lookup timed out. Try again, search an address, or click the map.';
+        }
+        showToast(msg, 'error');
+      }
+
+      function handleOk(pos) {
+        restoreBtn();
+        onFound(pos.coords.latitude, pos.coords.longitude);
+        showToast('Centered map on your current location.');
+      }
+
+      navigator.geolocation.getCurrentPosition(handleOk, function (err) {
+        if (err && (err.code === 2 || err.code === 3)) {
+          navigator.geolocation.getCurrentPosition(handleOk, handleFail, {
+            enableHighAccuracy: false,
+            timeout: 8000,
+            maximumAge: 300000
+          });
+        } else {
+          handleFail(err);
+        }
+      }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+    }
+
+    function parseCoordinates(raw) {
+      var m = String(raw || '').trim().match(/^([+-]?\d{1,2}(?:\.\d+)?)\s*[,;\s]\s*([+-]?\d{1,3}(?:\.\d+)?)$/);
+      if (!m) return null;
+      var lat = parseFloat(m[1]);
+      var lng = parseFloat(m[2]);
+      if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+      return { lat: lat, lng: lng };
+    }
+
+    function attachMapSearch(el, map, onSelect, placeholder) {
+      if (!el || !el.parentNode || el.parentNode.querySelector('.map-search-bar')) return;
+
+      var bar = document.createElement('div');
+      bar.className = 'map-search-bar';
+
+      var row = document.createElement('div');
+      row.className = 'map-search-row';
+
+      var field = document.createElement('div');
+      field.className = 'map-search-field';
+
+      var ic = document.createElement('span');
+      ic.className = 'map-search-ic';
+      ic.appendChild(createSvgIcon('search', 15));
+
+      var input = document.createElement('input');
+      input.type = 'search';
+      input.className = 'map-search-input';
+      input.autocomplete = 'off';
+      input.placeholder = placeholder || 'Search street, barangay, landmark, or lat, lng...';
+      input.setAttribute('aria-label', 'Search map location or coordinates');
+
+      var clearBtn = document.createElement('button');
+      clearBtn.type = 'button';
+      clearBtn.className = 'map-search-clear';
+      clearBtn.setAttribute('aria-label', 'Clear map search');
+      clearBtn.hidden = true;
+      clearBtn.appendChild(createSvgIcon('x', 14));
+
+      field.appendChild(ic);
+      field.appendChild(input);
+      field.appendChild(clearBtn);
+
+      var findBtn = document.createElement('button');
+      findBtn.type = 'button';
+      findBtn.className = 'btn ghost small map-search-btn';
+      findBtn.textContent = 'Find';
+
+      row.appendChild(field);
+      row.appendChild(findBtn);
+
+      var resultsEl = document.createElement('div');
+      resultsEl.className = 'map-search-results';
+      resultsEl.setAttribute('role', 'listbox');
+      resultsEl.hidden = true;
+
+      bar.appendChild(row);
+      bar.appendChild(resultsEl);
+      el.parentNode.insertBefore(bar, el);
+
+      var debounceTimer = null;
+      var activeCtrl = null;
+      var currentItems = [];
+      var activeIdx = -1;
+
+      function hideResults() {
+        resultsEl.hidden = true;
+        resultsEl.textContent = '';
+        currentItems = [];
+        activeIdx = -1;
+      }
+
+      function chooseItem(item) {
+        if (!item) return;
+        input.value = item.inputLabel || item.title;
+        clearBtn.hidden = !input.value;
+        hideResults();
+        onSelect(item.lat, item.lng, item.shortPlace || '');
+      }
+
+      function highlightIndex(idx) {
+        var btns = $all('.map-search-item', resultsEl);
+        if (!btns.length) { activeIdx = -1; return; }
+        activeIdx = Math.max(0, Math.min(idx, btns.length - 1));
+        btns.forEach(function (b, i) { b.classList.toggle('is-active', i === activeIdx); });
+      }
+
+      function renderResults(items, message) {
+        resultsEl.textContent = '';
+        currentItems = items || [];
+        activeIdx = -1;
+        if (message) {
+          var st = document.createElement('div');
+          st.className = 'map-search-state';
+          st.textContent = message;
+          resultsEl.appendChild(st);
+          resultsEl.hidden = false;
+          return;
+        }
+        if (!currentItems.length) {
+          hideResults();
+          return;
+        }
+        currentItems.forEach(function (item) {
+          var btn = document.createElement('button');
+          btn.type = 'button';
+          btn.className = 'map-search-item';
+          btn.setAttribute('role', 'option');
+
+          var iconBox = document.createElement('span');
+          iconBox.className = 'map-search-item-ic';
+          iconBox.appendChild(createSvgIcon('pin', 14));
+
+          var copy = document.createElement('span');
+          copy.className = 'map-search-item-copy';
+          var title = document.createElement('span');
+          title.className = 'map-search-item-title';
+          title.textContent = item.title;
+          var sub = document.createElement('span');
+          sub.className = 'map-search-item-sub';
+          sub.textContent = item.subtitle;
+          copy.appendChild(title);
+          copy.appendChild(sub);
+
+          var coords = document.createElement('span');
+          coords.className = 'map-search-item-coords';
+          coords.textContent = item.lat.toFixed(4) + ', ' + item.lng.toFixed(4);
+
+          btn.appendChild(iconBox);
+          btn.appendChild(copy);
+          btn.appendChild(coords);
+          btn.addEventListener('click', function () { chooseItem(item); });
+          resultsEl.appendChild(btn);
+        });
+        resultsEl.hidden = false;
+      }
+
+      function runSearch(immediateJump) {
+        var q = input.value.trim();
+        clearBtn.hidden = !q;
+        if (!q) { hideResults(); return; }
+
+        var coords = parseCoordinates(q);
+        if (coords) {
+          var coordItem = {
+            lat: coords.lat,
+            lng: coords.lng,
+            title: 'Jump to coordinates',
+            subtitle: coords.lat.toFixed(5) + ', ' + coords.lng.toFixed(5),
+            inputLabel: coords.lat.toFixed(5) + ', ' + coords.lng.toFixed(5),
+            shortPlace: ''
+          };
+          if (immediateJump) {
+            chooseItem(coordItem);
+            return;
+          }
+          renderResults([coordItem]);
+          return;
+        }
+
+        if (q.length < 2) {
+          if (immediateJump) renderResults([], 'Type at least 2 characters or paste coordinates (e.g. 8.4542, 124.6319).');
+          else hideResults();
+          return;
+        }
+
+        if (activeCtrl) activeCtrl.abort();
+        activeCtrl = window.AbortController ? new AbortController() : null;
+        renderResults([], 'Searching places...');
+
+        var b = map.getBounds ? map.getBounds() : null;
+        var vb = b ? ('&viewbox=' + [b.getWest().toFixed(4), b.getNorth().toFixed(4), b.getEast().toFixed(4), b.getSouth().toFixed(4)].join(',')) : '';
+        var url = 'https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=6' + vb + '&q=' + encodeURIComponent(q);
+
+        fetch(url, {
+          headers: { 'Accept': 'application/json' },
+          signal: activeCtrl ? activeCtrl.signal : undefined
+        })
+          .then(function (r) { return r.ok ? r.json() : []; })
+          .then(function (rows) {
+            if (!Array.isArray(rows) || !rows.length) {
+              renderResults([], 'No matching places found. Try a street, landmark, city, or paste lat, lng.');
+              return;
+            }
+            var mapped = rows.map(function (row) {
+              var full = String(row.display_name || '');
+              var parts = full.split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+              var head = String(row.name || parts[0] || 'Pinned location');
+              var tail = parts.slice(parts[0] === head ? 1 : 0, 4).join(', ');
+              return {
+                lat: parseFloat(row.lat),
+                lng: parseFloat(row.lon),
+                title: head,
+                subtitle: tail || full,
+                inputLabel: head + (tail ? ', ' + tail : ''),
+                shortPlace: head + (parts[1] && parts[1] !== head ? ', ' + parts[1] : '')
+              };
+            }).filter(function (x) { return !isNaN(x.lat) && !isNaN(x.lng); });
+
+            if (immediateJump && mapped.length === 1) {
+              chooseItem(mapped[0]);
+              return;
+            }
+            renderResults(mapped);
+          })
+          .catch(function (err) {
+            if (err && err.name === 'AbortError') return;
+            renderResults([], 'Place search could not reach the map directory. Paste coordinates (lat, lng) or click the map.');
+          });
+      }
+
+      input.addEventListener('input', function () {
+        clearBtn.hidden = !input.value.trim();
+        clearTimeout(debounceTimer);
+        if (!input.value.trim()) { hideResults(); return; }
+        var coords = parseCoordinates(input.value);
+        if (coords) { runSearch(false); return; }
+        debounceTimer = setTimeout(function () { runSearch(false); }, 340);
+      });
+
+      input.addEventListener('keydown', function (ev) {
+        if (ev.key === 'ArrowDown') {
+          if (!resultsEl.hidden) { ev.preventDefault(); highlightIndex(activeIdx + 1); }
+        } else if (ev.key === 'ArrowUp') {
+          if (!resultsEl.hidden) { ev.preventDefault(); highlightIndex(activeIdx - 1); }
+        } else if (ev.key === 'Escape') {
+          hideResults();
+        } else if (ev.key === 'Enter') {
+          ev.preventDefault();
+          if (!resultsEl.hidden && activeIdx >= 0 && currentItems[activeIdx]) {
+            chooseItem(currentItems[activeIdx]);
+          } else {
+            clearTimeout(debounceTimer);
+            runSearch(true);
+          }
+        }
+      });
+
+      findBtn.addEventListener('click', function () {
+        clearTimeout(debounceTimer);
+        runSearch(true);
+      });
+
+      clearBtn.addEventListener('click', function () {
+        clearTimeout(debounceTimer);
+        if (activeCtrl) activeCtrl.abort();
+        input.value = '';
+        clearBtn.hidden = true;
+        hideResults();
+        input.focus();
+      });
+
+      document.addEventListener('click', function (ev) {
+        if (!bar.contains(ev.target)) hideResults();
+      });
+    }
+
     // 10a. Report form: click the map (or use GPS) to drop a pin
     var picker = document.getElementById('map-picker');
     if (picker && !picker._leafletMap) {
@@ -650,6 +970,7 @@ header('X-Content-Type-Options: nosniff');
       var pin = null;
       var latInput = document.getElementById('latitude');
       var lngInput = document.getElementById('longitude');
+      var repLocInput = document.getElementById('location');
       attachMapLifecycle(picker, pickMap, addTiles(pickMap));
 
       var setPin = function (lat, lng) {
@@ -660,13 +981,18 @@ header('X-Content-Type-Options: nosniff');
       if (picker.dataset.pin === '1') setPin.apply(null, centerOf(picker));
       pickMap.on('click', function (e) { setPin(e.latlng.lat, e.latlng.lng); });
 
+      attachMapSearch(picker, pickMap, function (lat, lng, placeLabel) {
+        setPin(lat, lng);
+        pickMap.setView([lat, lng], 17);
+        if (repLocInput && !repLocInput.value.trim() && placeLabel) repLocInput.value = placeLabel;
+      });
+
       var locate = document.getElementById('locate');
       if (locate) locate.addEventListener('click', function () {
-        if (!navigator.geolocation) { showToast('Your browser does not support location.', 'error'); return; }
-        navigator.geolocation.getCurrentPosition(function (p) {
-          setPin(p.coords.latitude, p.coords.longitude);
-          pickMap.setView([p.coords.latitude, p.coords.longitude], 17);
-        }, function () { showToast('Could not get your location. Click the map instead.', 'error'); });
+        requestCurrentLocation(locate, function (lat, lng) {
+          setPin(lat, lng);
+          pickMap.setView([lat, lng], 17);
+        });
       });
     }
 
@@ -703,6 +1029,9 @@ header('X-Content-Type-Options: nosniff');
         markers.push(L.marker([p.lat, p.lng], { icon: icon }).addTo(allMap).bindPopup(box));
       });
       if (markers.length) allMap.fitBounds(L.featureGroup(markers).getBounds().pad(0.2), { maxZoom: 16 });
+      attachMapSearch(all, allMap, function (lat, lng) {
+        allMap.setView([lat, lng], 17);
+      }, 'Jump incident map to a street, barangay, or lat, lng...');
     }
 
     // 10d. Admin Pin & Dispatch: click anywhere to drop/drag a dispatch pin + see existing incidents
@@ -712,6 +1041,7 @@ header('X-Content-Type-Options: nosniff');
       attachMapLifecycle(dispatchEl, dMap, addTiles(dMap));
       var dLatIn = document.getElementById('dispatch-lat');
       var dLngIn = document.getElementById('dispatch-lng');
+      var dLocIn = document.getElementById('location');
       var dCoords = document.getElementById('dispatch-coords');
       var dCard = document.getElementById('dispatch-map-card');
       var dPin = null;
@@ -760,7 +1090,7 @@ header('X-Content-Type-Options: nosniff');
           dCoords.classList.add('is-pinned');
         }
         if (dCard) dCard.classList.remove('needs-pin');
-        if (pan) dMap.setView([lat, lng], Math.max(dMap.getZoom(), 16));
+        if (pan) dMap.setView([lat, lng], Math.max(dMap.getZoom(), 17));
       }
 
       if (dispatchEl.dataset.pin === '1') {
@@ -772,14 +1102,16 @@ header('X-Content-Type-Options: nosniff');
         updateDispatchPin(ev.latlng.lat, ev.latlng.lng, false);
       });
 
+      attachMapSearch(dispatchEl, dMap, function (lat, lng, placeLabel) {
+        updateDispatchPin(lat, lng, true);
+        if (dLocIn && !dLocIn.value.trim() && placeLabel) dLocIn.value = placeLabel;
+      });
+
       var dLocate = document.getElementById('dispatch-locate');
       if (dLocate) {
         dLocate.addEventListener('click', function () {
-          if (!navigator.geolocation) { showToast('Your browser does not support location.', 'error'); return; }
-          navigator.geolocation.getCurrentPosition(function (pos) {
-            updateDispatchPin(pos.coords.latitude, pos.coords.longitude, true);
-          }, function () {
-            showToast('Could not get your location. Click the map instead.', 'error');
+          requestCurrentLocation(dLocate, function (lat, lng) {
+            updateDispatchPin(lat, lng, true);
           });
         });
       }
@@ -828,7 +1160,7 @@ header('X-Content-Type-Options: nosniff');
         if (sLatIn) sLatIn.value = lat.toFixed(6);
         if (sLngIn) sLngIn.value = lng.toFixed(6);
         if (sReadout) sReadout.textContent = 'Center: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
-        if (pan) sMap.setView([lat, lng], Math.max(sMap.getZoom(), 15));
+        if (pan) sMap.setView([lat, lng], Math.max(sMap.getZoom(), 16));
       }
 
       sMap.on('click', function (ev) {
@@ -839,14 +1171,15 @@ header('X-Content-Type-Options: nosniff');
         applySettingsCoords(pos.lat, pos.lng, false);
       });
 
+      attachMapSearch(settingsEl, sMap, function (lat, lng) {
+        applySettingsCoords(lat, lng, true);
+      }, 'Search barangay, city, or paste lat, lng...');
+
       var sLocate = document.getElementById('settings-locate');
       if (sLocate) {
         sLocate.addEventListener('click', function () {
-          if (!navigator.geolocation) { showToast('Your browser does not support location.', 'error'); return; }
-          navigator.geolocation.getCurrentPosition(function (pos) {
-            applySettingsCoords(pos.coords.latitude, pos.coords.longitude, true);
-          }, function () {
-            showToast('Could not detect your location. Click the map instead.', 'error');
+          requestCurrentLocation(sLocate, function (lat, lng) {
+            applySettingsCoords(lat, lng, true);
           });
         });
       }
@@ -950,6 +1283,8 @@ header('X-Content-Type-Options: nosniff');
       grid: ['M3 4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z', 'M14 4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1z', 'M14 15a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1z', 'M3 15a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z'],
       megaphone: ['m3 11 18-5v12L3 14v-3z', 'M11.6 16.8a3 3 0 1 1-5.8-1.6'],
       plus: ['M5 12h14', 'M12 5v14'],
+      search: ['M11 19a8 8 0 1 0 0-16 8 8 0 0 0 0 16Z', 'm21 21-4.3-4.3'],
+      pin: ['M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z', 'M12 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z'],
     };
     (paths[kind] || paths.bell).forEach(function (d) {
       var p = document.createElementNS(ns, 'path');
