@@ -11,13 +11,12 @@ emergency **SOS**, admins assign volunteers and track progress, and everyone get
 
 ## Setup (Laragon or XAMPP)
 1. Install [Laragon](https://laragon.org) or XAMPP (PHP 8+, MySQL/MariaDB). Start Apache and MySQL.
-2. Put this project in the web root in a folder named exactly **`CAIRS`**
-   (`C:\laragon\www\CAIRS` or `C:\xampp\htdocs\CAIRS`). If you use another folder name,
-   change `BASE_URL` at the top of `config/database.php`.
-3. Import `database/cairs.sql` (phpMyAdmin > Import). It creates the `cairs` database and demo accounts.
-   The newer tables/columns (announcements, SOS, login attempts) are created automatically on first load.
+2. Put this folder in the web root (e.g. `C:\laragon\www\CAIRS-main` or `C:\xampp\htdocs\CAIRS-main`).
+   The app detects its own base URL, so the folder name does not matter.
+3. Just open the site. The `cairs` database, all tables, categories, settings and demo accounts are
+   created automatically on the first page load from `database/cairs.sql` - no manual import needed.
 4. Database login is `root` with an empty password. Change it in `config/database.php` if yours differs.
-5. Open <http://localhost/CAIRS>.
+5. Open the site, e.g. <http://cairs-main.test> (Laragon) or <http://localhost/CAIRS-main>.
 
 ## Demo accounts
 | Role      | Email                  | Password     |

@@ -4,3 +4,5 @@ node_modules/
 public/assets/uploads/*
 !public/assets/uploads/.gitkeep
 public/assets/aistudio/
+assets/uploads/*
+!assets/uploads/.gitkeep
