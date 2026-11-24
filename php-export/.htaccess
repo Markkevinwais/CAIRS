@@ -1,0 +1,7 @@
+RewriteEngine On
+
+# Route clean API endpoints used by assets/js/script.js to PHP handlers
+RewriteRule ^api/notifications/?$ api/notifications.php [L,QSA]
+RewriteRule ^api/notifications/read/?$ api/notifications_read.php [L,QSA]
+RewriteRule ^api/notifications/clear/?$ api/notifications_clear.php [L,QSA]
+RewriteRule ^api/profile/?$ api/profile.php [L,QSA]
