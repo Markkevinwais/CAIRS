@@ -70,7 +70,7 @@ const pageDesc = `${site} - Community Assistance and Incident Reporting System f
     <div class="sidebar-profile-popover" id="sidebar-profile-popover" role="dialog" aria-label="Account menu" hidden>
       <div class="sp-card">
         <div class="sp-head">
-          <span class="avatar"><span data-user-initials><%= initials(u.full_name) %></span><i class="avatar-status" aria-hidden="true"></i></span>
+          <%- renderAvatar(userProfile, '', true) %>
           <div class="sp-id">
             <div class="sp-name-row">
               <strong data-user-name><%= u.full_name %></strong>
@@ -80,17 +80,13 @@ const pageDesc = `${site} - Community Assistance and Incident Reporting System f
           </div>
         </div>
         <div class="sp-meta">
-          <span>Details:</span>
+          <span>Details</span>
           <b id="sp-details-text"><%= [userProfile?.address, userProfile?.phone].filter(Boolean).join(' · ') || 'No contact info yet' %></b>
         </div>
       </div>
       <div class="sp-menu">
         <button type="button" class="sp-item" data-profile-open>
           <%- icon('user', 16) %><span>Edit Profile &amp; Password</span>
-        </button>
-        <button type="button" class="sp-item" id="sp-open-notifs">
-          <%- icon('bell', 16) %><span>Notifications</span>
-          <% if (unread) { %><span class="count" data-sp-unread><%= unread %></span><% } %>
         </button>
         <% if (u.role === 'admin') { %>
           <a class="sp-item" href="<%= BASE_URL %>/admin/settings.php" data-sp-close>
@@ -112,7 +108,7 @@ const pageDesc = `${site} - Community Assistance and Incident Reporting System f
       </div>
     </div>
     <button type="button" class="who who-btn" id="sidebar-user-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="sidebar-profile-popover" aria-label="Account menu">
-      <span class="avatar"><span data-user-initials><%= initials(u.full_name) %></span><i class="avatar-status" aria-hidden="true"></i></span>
+      <%- renderAvatar(userProfile, '', true) %>
       <div class="who-info">
         <strong data-user-name><%= u.full_name %></strong>
         <span class="muted"><%= u.email %></span>
@@ -135,7 +131,6 @@ const pageDesc = `${site} - Community Assistance and Incident Reporting System f
     </form>
     <% } %>
     <div class="top-actions">
-      <span class="clock" data-clock><%= fmtManilaClock() %></span>
       <div class="notif-pop-wrap">
         <button type="button" class="icon-btn" id="notif-bell-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="notif-popover" aria-label="Notifications<%= unread ? ` (${unread} unread)` : '' %>">
           <%- icon('bell', 19) %><% if (unread) { %><span class="count"><%= unread %></span><% } %>
@@ -169,7 +164,7 @@ const pageDesc = `${site} - Community Assistance and Incident Reporting System f
         </div>
       </div>
       <button class="avatar-btn" type="button" data-profile-open aria-haspopup="dialog" aria-controls="profile-modal" aria-label="Open profile">
-        <span class="avatar" data-user-initials><%= initials(u.full_name) %></span>
+        <%- renderAvatar(userProfile, '', false) %>
       </button>
     </div>
   </header>

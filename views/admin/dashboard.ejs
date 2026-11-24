@@ -9,7 +9,7 @@
   </div>
 </section>
 <% } %>
-<div class="grid">
+<div class="grid grid-3">
   <%- statCard('file', 'Total reports', total, '', 'primary', trend) %>
   <%- statCard('clock', 'Pending', c.pending || 0, 'Needs attention', 'warning') %>
   <%- statCard('loader', 'In progress', (c.assigned || 0) + (c.in_progress || 0), 'Currently being handled', 'progress') %>
@@ -39,11 +39,11 @@
   <div class="card-head"><h2>Waiting for review (oldest first)</h2></div>
   <% if (!pending.length) { %><p class="empty">All caught up. No pending reports.</p><% } else { %>
   <div class="tablewrap"><table>
-    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Resident</th><th>Filed</th><th></th></tr>
+    <tr><th>Ref</th><th>Title</th><th>Category</th><th>Resident</th><th>Filed</th><th class="act"></th></tr>
     <% for (const r of pending) { %>
     <tr><td><%= refNo(r.id) %></td><td><%= r.title %><%- isOverdue(r) ? ' <span class="badge overdue">Overdue</span>' : '' %></td><td><%= r.category %></td>
         <td><%= r.resident_name %></td><td><%= fmtDate(r.created_at) %></td>
-        <td><a class="btn small" href="report_details.php?id=<%= r.id %>">Review</a></td></tr>
+        <td class="act"><a class="btn small" href="report_details.php?id=<%= r.id %>">Review</a></td></tr>
     <% } %>
   </table></div>
   <% } %>

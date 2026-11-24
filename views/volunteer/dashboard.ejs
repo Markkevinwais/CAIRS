@@ -2,7 +2,7 @@
 <%- renderWelcome(user.full_name.split(' ')[0], 'Your assigned incidents, highest priority first.', `<a class="btn ghost" href="assigned_reports.php">${icon('clipboard', 17)} All assignments</a>`) %>
 <%- renderAnnouncements() %>
 <%- renderAlerts(user.id) %>
-<div class="grid">
+<div class="grid grid-3">
   <%- statCard('clipboard', 'New assignments', c.assigned || 0, 'Waiting for you to start', 'warning') %>
   <%- statCard('loader', 'In progress', c.in_progress || 0, 'Currently being handled', 'progress') %>
   <%- statCard('check', 'Resolved by you', c.resolved || 0, 'Successfully completed', 'success') %>

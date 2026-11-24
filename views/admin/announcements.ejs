@@ -1,5 +1,10 @@
 <%- include('../partials/header', { title: 'Announcements' }) %>
-<h1>Announcements</h1>
+<div class="page-head">
+  <div class="page-head-copy">
+    <h1>Announcements</h1>
+    <p class="page-head-sub">Publish community notices shown on resident and volunteer dashboards.</p>
+  </div>
+</div>
 <div class="two">
   <div>
     <% if (!rows.length) { %><div class="card"><p class="empty">No announcements yet. Post the first one.</p></div><% } %>

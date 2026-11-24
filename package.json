@@ -6,9 +6,9 @@
   "main": "server.js",
   "scripts": {
     "dev": "node server.js",
-    "build": "node --check server.js",
+    "build": "node --check server.js && node --check lib/store.js && node --check lib/session.js && node --check lib/helpers.js",
     "start": "node server.js",
-    "lint": "node --check server.js"
+    "lint": "node --check server.js && node --check lib/store.js && node --check lib/session.js && node --check lib/helpers.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

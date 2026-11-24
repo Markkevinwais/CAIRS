@@ -1,14 +1,19 @@
 <%- include('../partials/header', { title: 'Volunteers' }) %>
-<h1>Volunteers</h1>
+<div class="page-head">
+  <div class="page-head-copy">
+    <h1>Volunteers</h1>
+    <p class="page-head-sub"><%= rows.length %> responder account<%= rows.length === 1 ? '' : 's' %> on roster</p>
+  </div>
+</div>
 <div class="two">
   <div class="card tablewrap">
   <% if (!rows.length) { %><p class="empty">No volunteers yet. Add the first one.</p><% } else { %>
   <table>
-    <tr><th>Name</th><th>Contact</th><th>Active</th><th>Resolved</th><th>Status</th><th></th></tr>
+    <tr><th>Name</th><th>Contact</th><th class="num">Active</th><th class="num">Resolved</th><th>Status</th><th class="act"></th></tr>
     <% for (const u of rows) { %>
     <tr><td><%= u.full_name %></td><td><%= u.email %><br><span class="muted"><%= u.phone || '' %></span></td>
-        <td><%= u.active_jobs %></td><td><%= u.done %></td><td><%= u.status.charAt(0).toUpperCase() + u.status.slice(1) %></td>
-        <td><form method="post" data-confirm="Change this volunteer's status?"><%- csrfField() %>
+        <td class="num"><%= u.active_jobs %></td><td class="num"><%= u.done %></td><td><span class="badge <%= u.status === 'active' ? 's-resolved' : 's-rejected' %>"><%= u.status.charAt(0).toUpperCase() + u.status.slice(1) %></span></td>
+        <td class="act"><form method="post" data-confirm="Change this volunteer's status?"><%- csrfField() %>
           <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<%= u.id %>">
           <button class="btn small <%= u.status === 'active' ? 'danger' : '' %>" type="submit"><%= u.status === 'active' ? 'Deactivate' : 'Activate' %></button></form></td></tr>
     <% } %>

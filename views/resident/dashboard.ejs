@@ -1,7 +1,7 @@
 <%- include('../partials/header', { title: 'Dashboard' }) %>
 <%- renderWelcome(user.full_name.split(' ')[0], 'Track your reports and see how your community responds.', `<a class="btn" href="report.php">${icon('plus', 17)} Report an incident</a>`) %>
 <%- renderAnnouncements() %>
-<div class="grid">
+<div class="grid grid-4">
   <%- statCard('file', 'Total reports', total, 'Everything you have filed', 'primary') %>
   <%- statCard('clock', 'Pending', c.pending || 0, 'Waiting for review', 'warning') %>
   <%- statCard('loader', 'In progress', open, 'Currently being handled', 'progress') %>

@@ -4,62 +4,256 @@
 <div class="modal" id="profile-modal">
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog modal-profile" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
-    <div class="modal-head">
-      <div class="profile-hero">
-        <span class="avatar avatar-lg" data-user-initials><%= initials(userProfile.full_name) %></span>
-        <div class="profile-hero-meta">
-          <h3 id="profile-modal-title" data-user-name><%= userProfile.full_name %></h3>
-          <p class="muted"><%= userProfile.email %></p>
-          <span class="badge s-assigned"><%= userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1) %></span>
+    <div class="pm-header">
+      <div class="pm-header-title">
+        <span class="pm-header-ic"><%- icon('user', 20) %></span>
+        <div>
+          <h3 id="profile-modal-title">Edit Profile &amp; Account</h3>
+          <p class="muted">Manage your profile photo, contact details, and account security</p>
         </div>
       </div>
-      <button type="button" class="notif-head-ic" data-modal-close aria-label="Close profile dialog"><%- icon('x', 16) %></button>
+      <button type="button" class="notif-head-ic" data-modal-close aria-label="Close dialog"><%- icon('x', 16) %></button>
     </div>
 
-    <div class="flash error" id="profile-modal-err" hidden></div>
+    <form id="profile-modal-form" class="pm-form" autocomplete="off">
+      <div class="pm-shell">
+        <aside class="pm-rail">
+          <div class="pm-rail-head">
+            <span>Settings Menu</span>
+            <span class="pm-step-pill" id="pm-step-pill">1 of 3</span>
+          </div>
+          <nav class="pm-nav" role="tablist" aria-label="Profile sections">
+            <button type="button" class="pm-nav-btn is-active" role="tab" aria-selected="true" data-pm-tab="identity" data-pm-step="1">
+              <span class="pm-nav-ic"><%- icon('user', 17) %></span>
+              <span class="pm-nav-copy">
+                <strong>Identity &amp; Role</strong>
+                <small>Avatar, name &amp; email</small>
+              </span>
+            </button>
+            <button type="button" class="pm-nav-btn" role="tab" aria-selected="false" data-pm-tab="contact" data-pm-step="2">
+              <span class="pm-nav-ic"><%- icon('pin', 17) %></span>
+              <span class="pm-nav-copy">
+                <strong>Contact &amp; Location</strong>
+                <small>Mobile number &amp; address</small>
+              </span>
+            </button>
+            <button type="button" class="pm-nav-btn" role="tab" aria-selected="false" data-pm-tab="security" data-pm-step="3">
+              <span class="pm-nav-ic"><%- icon('lock', 17) %></span>
+              <span class="pm-nav-copy">
+                <strong>Security &amp; Auth</strong>
+                <small>Password &amp; credentials</small>
+              </span>
+            </button>
+          </nav>
 
-    <form id="profile-modal-form" autocomplete="off">
-      <label for="pm-email">Email</label>
-      <input id="pm-email" type="email" value="<%= userProfile.email %>" disabled>
+          <div class="pm-rail-user">
+            <%- renderAvatar(userProfile, '', false) %>
+            <div class="pm-rail-user-meta">
+              <strong data-pm-preview-name><%= userProfile.full_name %></strong>
+              <span class="pm-role-tag"><%= userProfile.role.toUpperCase() %></span>
+            </div>
+          </div>
+        </aside>
 
-      <div class="form-row">
-        <div>
-          <label for="pm-name">Full name</label>
-          <input id="pm-name" name="full_name" required value="<%= userProfile.full_name %>">
-        </div>
-        <div>
-          <label for="pm-phone">Mobile number</label>
-          <input id="pm-phone" name="phone" value="<%= userProfile.phone %>">
+        <div class="pm-main">
+          <div class="flash error" id="profile-modal-err" hidden></div>
+
+          <!-- TAB 1: IDENTITY & ROLE -->
+          <section class="pm-pane is-active" data-pm-pane="identity" role="tabpanel">
+            <div class="pm-avatar-card">
+              <div class="pm-avatar-top">
+                <div class="pm-avatar-preview-wrap">
+                  <%- renderAvatar(userProfile, 'avatar-xl', false) %>
+                  <button type="button" class="pm-avatar-crop-fab" id="pm-crop-fab" title="Crop photo" aria-label="Crop photo"<%= userProfile.avatar_type === 'image' ? '' : ' hidden' %>><%- icon('crop', 12) %></button>
+                </div>
+                <div class="pm-avatar-info">
+                  <div class="pm-avatar-name">
+                    <strong data-pm-preview-name><%= userProfile.full_name %></strong>
+                    <span class="pm-dot-sep" aria-hidden="true">&middot;</span>
+                    <span class="pm-role-inline"><%= userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1) %></span>
+                  </div>
+                  <p class="pm-avatar-email"><%= userProfile.email %></p>
+                  <p class="pm-avatar-spec" id="pm-avatar-spec">
+                    <%= userProfile.avatar_shape === 'badge' ? 'Badge Avatar' : 'Circle Avatar' %> &middot; 256&times;256px
+                  </p>
+                </div>
+                <div class="pm-shape-toggle" role="group" aria-label="Avatar shape">
+                  <button type="button" class="pm-shape-btn<%= userProfile.avatar_shape === 'badge' ? ' is-active' : '' %>" data-pm-shape="badge">
+                    <span class="pm-shape-ic pm-shape-sq" aria-hidden="true"></span><span>Badge</span>
+                  </button>
+                  <button type="button" class="pm-shape-btn<%= userProfile.avatar_shape !== 'badge' ? ' is-active' : '' %>" data-pm-shape="circle">
+                    <span class="pm-shape-ic pm-shape-ci" aria-hidden="true"></span><span>Circle</span>
+                  </button>
+                </div>
+              </div>
+
+              <div class="pm-photo-actions">
+                <input type="file" id="pm-photo-file" accept="image/png,image/jpeg,image/webp" hidden>
+                <button type="button" class="btn small pm-btn-upload" id="pm-upload-btn"><%- icon('upload', 15) %><span>Upload Photo</span></button>
+                <button type="button" class="btn ghost small" id="pm-camera-btn"><%- icon('camera', 15) %><span>Take Photo</span></button>
+                <button type="button" class="btn ghost small" id="pm-crop-btn"<%= userProfile.avatar_type === 'image' ? '' : ' disabled' %>><%- icon('crop', 15) %><span>Crop Photo</span></button>
+                <button type="button" class="btn ghost small" id="pm-url-toggle-btn"><%- icon('link', 15) %><span>Image URL</span></button>
+                <button type="button" class="pm-trash-btn" id="pm-reset-avatar-btn" title="Remove photo and reset to badge" aria-label="Reset avatar to badge"><%- icon('trash', 15) %></button>
+              </div>
+
+              <!-- Inline Camera Capture Panel -->
+              <div class="pm-subpanel" id="pm-camera-panel" hidden>
+                <div class="pm-subpanel-head">
+                  <strong><%- icon('camera', 15) %> Camera Capture</strong>
+                  <button type="button" class="notif-head-ic" id="pm-camera-close" aria-label="Close camera"><%- icon('x', 14) %></button>
+                </div>
+                <p class="muted pm-cam-err" id="pm-cam-err" hidden></p>
+                <div class="pm-cam-stage">
+                  <video id="pm-cam-video" autoplay playsinline muted></video>
+                </div>
+                <div class="pm-subpanel-actions">
+                  <button type="button" class="btn ghost small" id="pm-camera-cancel">Cancel</button>
+                  <button type="button" class="btn small" id="pm-camera-snap"><%- icon('camera', 14) %> Capture Photo</button>
+                </div>
+              </div>
+
+              <!-- Inline Cropper Panel -->
+              <div class="pm-subpanel" id="pm-crop-panel" hidden>
+                <div class="pm-subpanel-head">
+                  <strong><%- icon('crop', 15) %> Crop Avatar (256&times;256)</strong>
+                  <button type="button" class="notif-head-ic" id="pm-crop-close" aria-label="Close cropper"><%- icon('x', 14) %></button>
+                </div>
+                <div class="pm-crop-layout">
+                  <canvas id="pm-crop-canvas" width="220" height="220"></canvas>
+                  <div class="pm-crop-controls">
+                    <label for="pm-crop-zoom">Zoom</label>
+                    <input type="range" id="pm-crop-zoom" min="1" max="3" step="0.05" value="1">
+                    <label for="pm-crop-x">Horizontal</label>
+                    <input type="range" id="pm-crop-x" min="-100" max="100" step="1" value="0">
+                    <label for="pm-crop-y">Vertical</label>
+                    <input type="range" id="pm-crop-y" min="-100" max="100" step="1" value="0">
+                  </div>
+                </div>
+                <div class="pm-subpanel-actions">
+                  <button type="button" class="btn ghost small" id="pm-crop-cancel">Cancel</button>
+                  <button type="button" class="btn small" id="pm-crop-apply"><%- icon('check-simple', 14) %> Apply Crop</button>
+                </div>
+              </div>
+
+              <!-- Inline Image URL Panel -->
+              <div class="pm-subpanel" id="pm-url-panel" hidden>
+                <div class="pm-subpanel-head">
+                  <strong><%- icon('link', 15) %> Use Image URL</strong>
+                  <button type="button" class="notif-head-ic" id="pm-url-close" aria-label="Close URL input"><%- icon('x', 14) %></button>
+                </div>
+                <div class="pm-url-row">
+                  <input type="url" id="pm-avatar-url-input" placeholder="https://example.com/avatar.jpg" value="<%= userProfile.avatar_type === 'image' ? userProfile.avatar_url : '' %>">
+                  <button type="button" class="btn small" id="pm-url-apply">Apply</button>
+                </div>
+              </div>
+
+              <div class="pm-badge-head">
+                <span>Or choose a quick badge style</span>
+                <small><%= AVATAR_BADGE_STYLES.length %> styles</small>
+              </div>
+              <div class="pm-badge-grid" id="pm-badge-grid">
+                <% for (const bs of AVATAR_BADGE_STYLES) { %>
+                  <button type="button"
+                    class="pm-badge-chip<%= (userProfile.avatar_type !== 'image' && (userProfile.avatar_style || 'initials') === bs.id) ? ' is-selected' : '' %>"
+                    data-pm-badge="<%= bs.id %>">
+                    <span class="pm-badge-dot av-style-<%= bs.id %>">
+                      <% if (bs.kind === 'icon') { %>
+                        <%- icon(bs.ic, 13) %>
+                      <% } else { %>
+                        <span data-user-initials><%= initials(userProfile.full_name) %></span>
+                      <% } %>
+                    </span>
+                    <span><%= bs.label %></span>
+                  </button>
+                <% } %>
+              </div>
+            </div>
+
+            <div class="form-row pm-fields-row">
+              <div>
+                <label class="pm-lbl" for="pm-name"><%- icon('user', 14) %><span>Display Name</span></label>
+                <div class="pm-input-ic">
+                  <%- icon('user', 16) %>
+                  <input id="pm-name" name="full_name" required value="<%= userProfile.full_name %>">
+                </div>
+              </div>
+              <div>
+                <label class="pm-lbl" for="pm-email"><%- icon('mail', 14) %><span>Account Email</span></label>
+                <div class="pm-input-ic is-disabled">
+                  <%- icon('mail', 16) %>
+                  <input id="pm-email" type="email" value="<%= userProfile.email %>" disabled>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 2: CONTACT & LOCATION -->
+          <section class="pm-pane" data-pm-pane="contact" role="tabpanel" hidden>
+            <div class="pm-pane-card">
+              <div class="pm-pane-intro">
+                <span class="pm-pane-ic"><%- icon('pin', 18) %></span>
+                <div>
+                  <h4>Contact &amp; Barangay Address</h4>
+                  <p class="muted">Used by barangay responders for report follow-ups and emergency SOS location fallback.</p>
+                </div>
+              </div>
+              <div class="form-row pm-fields-row">
+                <div>
+                  <label class="pm-lbl" for="pm-phone"><%- icon('phone', 14) %><span>Mobile Number</span></label>
+                  <div class="pm-input-ic">
+                    <%- icon('phone', 16) %>
+                    <input id="pm-phone" name="phone" placeholder="09XX-XXX-XXXX" value="<%= userProfile.phone %>">
+                  </div>
+                </div>
+                <div>
+                  <label class="pm-lbl" for="pm-address"><%- icon('pin', 14) %><span>Address / Purok</span></label>
+                  <div class="pm-input-ic">
+                    <%- icon('pin', 16) %>
+                    <input id="pm-address" name="address" placeholder="Street, Purok, or Barangay Hall" <%= userProfile.role === 'resident' ? 'required' : '' %> value="<%= userProfile.address %>">
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- TAB 3: SECURITY & AUTH -->
+          <section class="pm-pane" data-pm-pane="security" role="tabpanel" hidden>
+            <div class="pm-pane-card">
+              <div class="pm-pane-intro">
+                <span class="pm-pane-ic"><%- icon('lock', 18) %></span>
+                <div>
+                  <h4>Password &amp; Security</h4>
+                  <p class="muted">Leave both fields empty if you do not want to change your current password.</p>
+                </div>
+              </div>
+              <div class="form-row pm-fields-row">
+                <div>
+                  <label class="pm-lbl" for="pm-cur-pw"><%- icon('lock', 14) %><span>Current Password</span></label>
+                  <div class="pm-input-ic pm-pw-ic">
+                    <%- icon('lock', 16) %>
+                    <input id="pm-cur-pw" type="password" name="current_password" placeholder="Enter current password">
+                    <button type="button" class="pm-eye-btn" data-pm-eye="pm-cur-pw" aria-label="Show password"><%- icon('eye', 16) %></button>
+                  </div>
+                </div>
+                <div>
+                  <label class="pm-lbl" for="pm-new-pw"><%- icon('key', 14) %><span>New Password</span></label>
+                  <div class="pm-input-ic pm-pw-ic">
+                    <%- icon('key', 16) %>
+                    <input id="pm-new-pw" type="password" name="new_password" minlength="6" placeholder="Min. 6 characters">
+                    <button type="button" class="pm-eye-btn" data-pm-eye="pm-new-pw" aria-label="Show password"><%- icon('eye', 16) %></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
         </div>
       </div>
 
-      <label for="pm-address">Address / Purok</label>
-      <input id="pm-address" name="address" <%= userProfile.role === 'resident' ? 'required' : '' %> value="<%= userProfile.address %>">
-
-      <div class="profile-pw-sep">
-        <span>Change password (optional)</span>
-      </div>
-      <div class="form-row">
-        <div>
-          <label for="pm-cur-pw">Current password</label>
-          <input id="pm-cur-pw" type="password" name="current_password" placeholder="Current password">
-        </div>
-        <div>
-          <label for="pm-new-pw">New password</label>
-          <input id="pm-new-pw" type="password" name="new_password" placeholder="Min. 6 characters">
-        </div>
-      </div>
-
-      <div class="modal-actions modal-actions-split">
-        <div class="modal-actions-left">
-          <% if (userProfile.role === 'admin') { %>
-            <a class="btn ghost small" href="<%= BASE_URL %>/admin/settings.php" data-modal-close><%- icon('sliders', 15) %> Settings</a>
-          <% } %>
-          <a class="btn ghost danger small" href="<%= BASE_URL %>/logout.php"><%- icon('logout', 15) %> Log out</a>
-        </div>
-        <div class="modal-actions-right">
+      <div class="pm-footer">
+        <span class="pm-sync-note"><%- icon('shield', 15) %><span>Synced across your CAIRS session</span></span>
+        <div class="pm-footer-actions">
           <button type="button" class="btn ghost" data-modal-close>Cancel</button>
-          <button type="submit" class="btn" id="pm-save-btn">Save changes</button>
+          <button type="submit" class="btn" id="pm-save-btn"><%- icon('check-simple', 16) %><span>Save Changes</span></button>
         </div>
       </div>
     </form>

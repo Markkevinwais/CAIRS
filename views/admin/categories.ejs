@@ -1,22 +1,27 @@
 <%- include('../partials/header', { title: 'Categories' }) %>
-<h1>Categories</h1>
+<div class="page-head">
+  <div class="page-head-copy">
+    <h1>Categories</h1>
+    <p class="page-head-sub">Manage incident classifications and automatic priority mapping.</p>
+  </div>
+</div>
 <div class="two">
   <div class="card tablewrap">
   <% if (!rows.length) { %><p class="empty">No categories yet. Add the first one.</p><% } else { %>
   <table>
-    <tr><th>Name</th><th>Priority</th><th>Reports</th><th></th></tr>
+    <tr><th>Name</th><th>Priority</th><th class="num">Reports</th><th class="act"></th></tr>
     <% for (const c of rows) { %>
     <tr>
       <td>
         <form method="post" style="display:flex;gap:8px;align-items:center"><%- csrfField() %>
           <input type="hidden" name="action" value="rename"><input type="hidden" name="id" value="<%= c.id %>">
-          <input name="name" maxlength="60" required value="<%= c.name %>" aria-label="Category name" style="flex:1;min-width:0">
+          <input name="name" maxlength="60" required value="<%= c.name %>" aria-label="Category name" style="flex:1;min-width:140px">
           <button class="btn ghost small" type="submit">Save</button>
         </form>
       </td>
       <td><%- prio(defaultPriority(c.name)) %></td>
-      <td><%= c.total %></td>
-      <td>
+      <td class="num"><%= c.total %></td>
+      <td class="act">
         <% if (c.total > 0) { %><span class="muted">In use</span>
         <% } else { %>
         <form method="post" data-confirm="Delete the category &quot;<%= c.name %>&quot;?"><%- csrfField() %>

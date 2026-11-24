@@ -36,7 +36,7 @@ app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+app.use(express.json({ limit: '5mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 
 app.use(sessionMiddleware);
@@ -83,6 +83,10 @@ app.use((req, res, next) => {
         phone: liveUser.phone || '',
         address: liveUser.address || '',
         created_at: liveUser.created_at || '',
+        avatar_type: liveUser.avatar_type === 'image' ? 'image' : 'badge',
+        avatar_style: liveUser.avatar_style || 'initials',
+        avatar_shape: liveUser.avatar_shape === 'badge' ? 'badge' : 'circle',
+        avatar_url: helpers.sanitizeAvatarUrl(liveUser.avatar_url),
       };
     }
   }
@@ -436,8 +440,23 @@ app.get('/api/profile', (req, res) => {
     created_at: me.created_at,
     created_fmt: helpers.fmtDate(me.created_at),
     initials: helpers.initials(me.full_name),
+    avatar_type: me.avatar_type === 'image' ? 'image' : 'badge',
+    avatar_style: me.avatar_style || 'initials',
+    avatar_shape: me.avatar_shape === 'badge' ? 'badge' : 'circle',
+    avatar_url: helpers.sanitizeAvatarUrl(me.avatar_url),
   });
 });
+
+function removeOldUserAvatars(uid, keepFilename = '') {
+  try {
+    const prefix = `avatar_${uid}_`;
+    for (const f of fs.readdirSync(UPLOAD_DIR)) {
+      if (f.startsWith(prefix) && f !== keepFilename) {
+        fs.unlinkSync(path.join(UPLOAD_DIR, f));
+      }
+    }
+  } catch {}
+}
 
 app.post('/api/profile', apiCsrfCheck, (req, res) => {
   const uid = req.session.user.id;
@@ -450,25 +469,69 @@ app.post('/api/profile', apiCsrfCheck, (req, res) => {
   const curPass = String(req.body?.current_password || '');
   const newPass = String(req.body?.new_password || '');
 
-  if (!name) return res.status(400).json({ error: 'Enter your full name.' });
-  if (name.length > 100) return res.status(400).json({ error: 'Name is too long.' });
-  if (phone.length > 40) return res.status(400).json({ error: 'Phone number is too long.' });
-  if (addr.length > 200) return res.status(400).json({ error: 'Address is too long.' });
+  const avatarType = req.body?.avatar_type === 'image' ? 'image' : 'badge';
+  const validStyleIds = new Set(helpers.AVATAR_BADGE_STYLES.map((s) => s.id));
+  const avatarStyle = validStyleIds.has(req.body?.avatar_style) ? req.body.avatar_style : 'initials';
+  const avatarShape = req.body?.avatar_shape === 'badge' ? 'badge' : 'circle';
+  const avatarData = typeof req.body?.avatar_data === 'string' ? req.body.avatar_data.trim() : '';
+  const rawAvatarUrl = typeof req.body?.avatar_url === 'string' ? req.body.avatar_url.trim() : '';
+
+  if (!name) return res.status(400).json({ error: 'Enter your full name.', field: 'name' });
+  if (name.length > 100) return res.status(400).json({ error: 'Name is too long.', field: 'name' });
+  if (phone.length > 40) return res.status(400).json({ error: 'Phone number is too long.', field: 'phone' });
+  if (addr.length > 200) return res.status(400).json({ error: 'Address is too long.', field: 'address' });
   if (me.role === 'resident' && !addr) {
-    return res.status(400).json({ error: 'Enter your address or purok.' });
+    return res.status(400).json({ error: 'Enter your address or purok.', field: 'address' });
   }
   if (newPass !== '') {
     if (!verifyPassword(curPass, me.password)) {
-      return res.status(400).json({ error: 'Current password is incorrect.' });
+      return res.status(400).json({ error: 'Current password is incorrect.', field: 'password' });
     }
     if (newPass.length < 6) {
-      return res.status(400).json({ error: 'New password must be at least 6 characters.' });
+      return res.status(400).json({ error: 'New password must be at least 6 characters.', field: 'password' });
     }
+  }
+
+  let nextAvatarUrl = '';
+  let nextAvatarType = avatarType;
+  if (avatarType === 'image') {
+    if (avatarData) {
+      const m = avatarData.match(/^data:image\/(png|jpeg|webp);base64,([A-Za-z0-9+/=]+)$/);
+      if (!m) {
+        return res.status(400).json({ error: 'Unsupported image format. Use PNG, JPG, or WebP.', field: 'avatar' });
+      }
+      const buf = Buffer.from(m[2], 'base64');
+      if (buf.length === 0 || buf.length > 3 * 1024 * 1024) {
+        return res.status(400).json({ error: 'Profile photo must be under 3 MB.', field: 'avatar' });
+      }
+      const ext = m[1] === 'jpeg' ? 'jpg' : m[1];
+      const fname = `avatar_${uid}_${Date.now()}.${ext}`;
+      fs.writeFileSync(path.join(UPLOAD_DIR, fname), buf);
+      removeOldUserAvatars(uid, fname);
+      nextAvatarUrl = `/assets/uploads/${fname}`;
+    } else {
+      const safeUrl = helpers.sanitizeAvatarUrl(rawAvatarUrl);
+      if (!safeUrl) {
+        return res.status(400).json({ error: 'Please provide a valid http(s) image URL or upload a photo.', field: 'avatar' });
+      }
+      if (!safeUrl.startsWith('/assets/uploads/')) {
+        removeOldUserAvatars(uid);
+      }
+      nextAvatarUrl = safeUrl;
+    }
+  } else {
+    removeOldUserAvatars(uid);
+    nextAvatarType = 'badge';
+    nextAvatarUrl = '';
   }
 
   me.full_name = name;
   me.phone = phone || null;
   me.address = addr || null;
+  me.avatar_type = nextAvatarType;
+  me.avatar_style = avatarStyle;
+  me.avatar_shape = avatarShape;
+  me.avatar_url = nextAvatarUrl || null;
   if (newPass !== '') me.password = hashPw(newPass);
   saveDb();
 
@@ -482,6 +545,10 @@ app.post('/api/profile', apiCsrfCheck, (req, res) => {
       address: me.address || '',
       role: me.role,
       initials: helpers.initials(me.full_name),
+      avatar_type: me.avatar_type,
+      avatar_style: me.avatar_style,
+      avatar_shape: me.avatar_shape,
+      avatar_url: me.avatar_url || '',
     },
   });
 });
@@ -1264,7 +1331,13 @@ app.get('/admin/analytics.php', requireRole('admin'), (req, res) => {
     avgHours = sumHours / resolved;
   }
 
-  const byStatus = {};
+  const byStatus = {
+    pending: 0,
+    assigned: 0,
+    in_progress: 0,
+    resolved: 0,
+    rejected: 0,
+  };
   for (const r of db.reports) {
     byStatus[r.status] = (byStatus[r.status] || 0) + 1;
   }
@@ -1274,21 +1347,56 @@ app.get('/admin/analytics.php', requireRole('admin'), (req, res) => {
     .sort((a, b) => b[1] - a[1]);
   const byCat = Object.fromEntries(catEntries);
 
-  const sixMonthsAgo = new Date();
-  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 6);
+  const nowManilaParts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'Asia/Manila',
+    year: 'numeric',
+    month: 'numeric',
+  }).formatToParts(new Date());
+  const curYear = Number(nowManilaParts.find((p) => p.type === 'year')?.value || new Date().getFullYear());
+  const curMonth = Number(nowManilaParts.find((p) => p.type === 'month')?.value || new Date().getMonth() + 1);
+
   const monthBuckets = new Map();
-  const sortedByDate = [...db.reports]
-    .filter((r) => new Date(r.created_at) >= sixMonthsAgo)
-    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
-  for (const r of sortedByDate) {
-    const label = new Date(r.created_at).toLocaleString('en-US', {
+  for (let offset = 5; offset >= 0; offset--) {
+    const d = new Date(Date.UTC(curYear, curMonth - 1 - offset, 15));
+    const ym = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+    }).format(d);
+    const shortMon = new Intl.DateTimeFormat('en-US', {
       timeZone: 'Asia/Manila',
       month: 'short',
+    }).format(d);
+    const yr = new Intl.DateTimeFormat('en-US', {
+      timeZone: 'Asia/Manila',
       year: 'numeric',
+    }).format(d);
+    monthBuckets.set(ym, {
+      label: shortMon,
+      subLabel: yr,
+      ym: ym.replace('-', '/'),
+      fullLabel: `${shortMon} ${yr}`,
+      value: 0,
+      resolved: 0,
     });
-    monthBuckets.set(label, (monthBuckets.get(label) || 0) + 1);
   }
-  const byMonth = Object.fromEntries(monthBuckets);
+
+  for (const r of db.reports) {
+    const dt = new Date(r.created_at);
+    if (Number.isNaN(dt.getTime())) continue;
+    const ym = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Manila',
+      year: 'numeric',
+      month: '2-digit',
+    }).format(dt);
+    const bucket = monthBuckets.get(ym);
+    if (bucket) {
+      bucket.value += 1;
+      if (r.status === 'resolved') bucket.resolved += 1;
+    }
+  }
+
+  const byMonth = Array.from(monthBuckets.values());
 
   res.render('admin/analytics', { total, resolved, avgHours, byStatus, byCat, byMonth });
 });
