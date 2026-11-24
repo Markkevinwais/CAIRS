@@ -205,8 +205,3 @@ $pageDesc = "{$site} - Community Assistance and Incident Reporting System for ba
 <div class="main-scroll">
 <?php endif; ?>
 <main class="content" id="main">
-  <?php if ($flash): ?>
-    <div class="flash <?= e($flash['t']) ?> toast" role="<?= $flash['t'] === 'error' ? 'alert' : 'status' ?>">
-      <span><?= e($flash['m']) ?></span><button type="button" class="toast-close" aria-label="Dismiss">&times;</button>
-    </div>
-  <?php endif; ?>

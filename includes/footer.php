@@ -279,6 +279,15 @@
   </div>
 </div>
 <?php endif; ?>
+<div class="toast-region" id="toast-region" aria-live="polite" aria-atomic="false">
+  <?php if (!empty($flash)): ?>
+    <div class="flash <?= e($flash['t']) ?> toast" role="<?= $flash['t'] === 'error' ? 'alert' : 'status' ?>">
+      <span class="toast-ic" aria-hidden="true"><?= icon($flash['t'] === 'error' ? 'alert' : 'check', 18) ?></span>
+      <div class="toast-body"><?= e($flash['m']) ?></div>
+      <button type="button" class="toast-close" aria-label="Dismiss">&times;</button>
+    </div>
+  <?php endif; ?>
+</div>
 <script src="<?= BASE_URL ?>/assets/js/script.php"></script>
 </body>
 </html>

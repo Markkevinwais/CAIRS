@@ -395,37 +395,81 @@ header('X-Content-Type-Options: nosniff');
 
 
   /* 6. TOAST MESSAGES ---------------------------------------------------- */
-  function bindToastDismiss(toast) {
+  function toastIcon(type) {
+    var path = type === 'error'
+      ? '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>'
+      : '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>';
+    return '<svg class="icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + path + '</svg>';
+  }
+
+  function toastRegion() {
+    var region = document.getElementById('toast-region');
+    if (!region) {
+      region = document.createElement('div');
+      region.id = 'toast-region';
+      region.className = 'toast-region';
+      region.setAttribute('aria-live', 'polite');
+      region.setAttribute('aria-atomic', 'false');
+      document.body.appendChild(region);
+    }
+    return region;
+  }
+
+  function bindToastDismiss(toast, timeout) {
+    var timer = null;
+    var done = false;
     function dismiss() {
+      if (done) return;
+      done = true;
+      if (timer) clearTimeout(timer);
       toast.classList.add('hide');
-      setTimeout(function () { toast.style.display = 'none'; }, 450);
+      setTimeout(function () { if (toast.parentNode) toast.parentNode.removeChild(toast); }, 260);
+    }
+    function schedule() {
+      if (done) return;
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(dismiss, timeout);
     }
     var close = $('.toast-close', toast);
     if (close) close.addEventListener('click', dismiss);
-    setTimeout(dismiss, toast.classList.contains('success') ? 5000 : 9000);
+    toast.addEventListener('mouseenter', function () { if (timer) clearTimeout(timer); });
+    toast.addEventListener('mouseleave', schedule);
+    toast.addEventListener('focusin', function () { if (timer) clearTimeout(timer); });
+    toast.addEventListener('focusout', schedule);
+    schedule();
   }
 
-  function showToast(msg, type) {
-    var main = $('#main');
-    if (!main) return;
+  function createToast(type, timeout) {
     var toast = document.createElement('div');
     toast.className = 'flash ' + (type || 'success') + ' toast';
     toast.setAttribute('role', type === 'error' ? 'alert' : 'status');
-    var span = document.createElement('span');
-    span.textContent = msg;
+    var icon = document.createElement('span');
+    icon.className = 'toast-ic';
+    icon.setAttribute('aria-hidden', 'true');
+    icon.innerHTML = toastIcon(type);
+    var body = document.createElement('div');
+    body.className = 'toast-body';
     var close = document.createElement('button');
     close.type = 'button';
     close.className = 'toast-close';
     close.setAttribute('aria-label', 'Dismiss');
     close.innerHTML = '&times;';
-    toast.appendChild(span);
+    toast.appendChild(icon);
+    toast.appendChild(body);
     toast.appendChild(close);
-    main.insertBefore(toast, main.firstChild);
-    bindToastDismiss(toast);
+    bindToastDismiss(toast, timeout || (type === 'error' ? 9000 : 5000));
+    toastRegion().appendChild(toast);
+    return body;
+  }
+
+  function showToast(msg, type, timeout) {
+    createToast(type, timeout).textContent = msg;
   }
 
   function initToasts() {
-    $all('.toast').forEach(bindToastDismiss);
+    $all('.toast').forEach(function (toast) {
+      bindToastDismiss(toast, toast.classList.contains('error') ? 9000 : 5000);
+    });
     // Old-style inline success message (kept so nothing breaks)
     var inline = $('.flash.success:not(.toast)');
     if (inline) setTimeout(function () { inline.style.display = 'none'; }, 5000);
@@ -927,26 +971,11 @@ header('X-Content-Type-Options: nosniff');
     var lastSos = null;
 
     function sosToast(d) {
-      var main = $('#main');
-      if (!main) return;
-      var toast = document.createElement('div');
-      toast.className = 'flash error toast';
-      toast.setAttribute('role', 'alert');
-      var text = document.createElement('span');
+      var body = createToast('error', 20000);
       var link = document.createElement('a');
       link.href = d.sos_url;
       link.textContent = 'New SOS alert: ' + d.sos_title;       // textContent = safe from HTML injection
-      text.appendChild(link);
-      var close = document.createElement('button');
-      close.type = 'button';
-      close.className = 'toast-close';
-      close.setAttribute('aria-label', 'Dismiss');
-      close.innerHTML = '&times;';
-      close.addEventListener('click', function () { toast.style.display = 'none'; });
-      toast.appendChild(text);
-      toast.appendChild(close);
-      main.insertBefore(toast, main.firstChild);
-      setTimeout(function () { toast.style.display = 'none'; }, 20000);
+      body.appendChild(link);
     }
 
     function poll() {

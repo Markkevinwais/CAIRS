@@ -256,10 +256,19 @@ input[type=file]::file-selector-button{margin-right:14px;padding:7px 14px;border
 .flash{margin-bottom:14px;padding:12px 16px;border:1px solid;border-radius:12px;font-size:.92rem}
 .flash.success{background:var(--success-soft);border-color:#86efac;color:#14532d}
 .flash.error{background:var(--danger-soft);border-color:#fca5a5;color:#7f1d1d}
-.flash.toast{position:fixed;top:76px;right:24px;z-index:120;display:flex;align-items:flex-start;gap:12px;max-width:380px;margin:0;box-shadow:var(--shadow-lg);transition:opacity .4s var(--ease),transform .4s var(--ease)}
-.flash.toast.hide{opacity:0;transform:translateY(-8px)}
-.toast-close{margin-left:auto;padding:0 4px;border:0;background:none;color:inherit;font-size:1.3rem;line-height:1;cursor:pointer;opacity:.6}
-.toast-close:hover{opacity:1}
+.toast-region{position:fixed;right:24px;bottom:24px;z-index:200;display:flex;flex-direction:column;align-items:flex-end;gap:10px;width:min(380px,calc(100vw - 48px));pointer-events:none}
+body:has(.sos-fab) .toast-region{bottom:96px}
+.flash.toast{pointer-events:auto;display:flex;align-items:flex-start;gap:12px;width:100%;margin:0;padding:13px 12px 13px 14px;border:1px solid var(--border);border-radius:14px;background:var(--surface);color:var(--text);font-size:.9rem;line-height:1.5;box-shadow:var(--shadow-lg);animation:toast-in .3s var(--ease) backwards}
+.flash.toast.success{border-color:#bbf7d0}
+.flash.toast.error{border-color:#fecaca}
+.flash.toast.hide{animation:toast-out .24s var(--ease) forwards}
+.toast-ic{flex:none;display:grid;place-items:center;width:30px;height:30px;margin-top:1px;border-radius:9px}
+.flash.toast.success .toast-ic{background:var(--success-soft);color:#15803d}
+.flash.toast.error .toast-ic{background:var(--danger-soft);color:#b91c1c}
+.toast-body{flex:1;min-width:0;padding-top:4px;font-weight:500;color:var(--text)}
+.toast-body a{color:inherit;font-weight:700;text-decoration:underline;text-underline-offset:2px}
+.toast-close{flex:none;display:grid;place-items:center;width:26px;height:26px;margin:2px 0 0;padding:0;border:0;border-radius:8px;background:none;color:var(--text-muted);font-size:1.15rem;line-height:1;cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease)}
+.toast-close:hover{background:#f1f5f9;color:var(--text)}
 .photo-preview{display:inline-block;margin:12px 0 0;padding:0}
 .photo-preview img{display:block;max-width:280px;max-height:220px;border-radius:14px;box-shadow:var(--shadow-md);border:1px solid var(--border)}
 .photo-preview .actions{display:flex;gap:8px;margin-top:10px}
@@ -403,7 +412,8 @@ td a{font-weight:600}
 @keyframes rise      {from{opacity:0;transform:translateY(16px)}}
 @keyframes fade      {from{opacity:0}}
 @keyframes slide-left{from{opacity:0;transform:translateX(-20px)}}
-@keyframes drop      {from{opacity:0;transform:translateY(-10px)}}
+@keyframes toast-in  {from{opacity:0;transform:translateY(14px) scale(.98)}}
+@keyframes toast-out {to{opacity:0;transform:translateY(8px) scale(.98)}}
 @keyframes scale-in  {from{opacity:0;transform:scale(.95)}}
 @keyframes grow      {from{transform:scaleX(0)}}
 @keyframes ring      {0%{transform:scale(1);opacity:.55}100%{transform:scale(2.7);opacity:0}}
@@ -427,7 +437,6 @@ td a{font-weight:600}
 .report-grid > .report-card{animation:rise .45s var(--ease) backwards}
 .report-grid > :nth-child(1){animation-delay:.4s} .report-grid > :nth-child(2){animation-delay:.46s}
 .report-grid > :nth-child(3){animation-delay:.52s} .report-grid > :nth-child(n+4){animation-delay:.58s}
-.flash.toast{animation:drop .4s var(--ease) backwards}
 .auth-card{animation:rise .55s var(--ease) .1s backwards}
 .auth-brand{animation:fade .6s var(--ease) backwards}
 .landing-nav{animation:fade .5s var(--ease) backwards}
@@ -498,7 +507,8 @@ td a{font-weight:600}
   .auth-header{padding:14px 20px}
   .auth-panel-body{padding:26px 20px 36px}
   table{min-width:640px}
-  .flash.toast{left:16px;right:16px;max-width:none;top:68px}
+  .toast-region{left:16px;right:16px;bottom:16px;width:auto;align-items:stretch}
+  body:has(.sos-fab) .toast-region{bottom:84px}
 }
 @media (max-width:680px){
   .mock-stack{grid-template-columns:1fr;gap:12px}
@@ -529,7 +539,7 @@ td a{font-weight:600}
 
 /* 22. PRINT --------------------------------------------------------------- */
 @media print{
-  .sidebar,.sidebar-overlay,.topbar,.filters,.noprint,.btn,.flash,.toast,.modal,.hero-shapes,.skip-link,.sos-fab{display:none!important}
+  .sidebar,.sidebar-overlay,.topbar,.filters,.noprint,.btn,.flash,.toast,.toast-region,.modal,.hero-shapes,.skip-link,.sos-fab{display:none!important}
   body.app{display:block;height:auto;overflow:visible;background:#fff}
   .main,.main-scroll{display:block;height:auto;overflow:visible}
   .content{max-width:none;padding:0}
