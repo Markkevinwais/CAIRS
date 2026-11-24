@@ -208,11 +208,11 @@ function avatarBadgeStyles(): array
         ['id' => 'emerald', 'label' => 'Emerald', 'kind' => 'initials'],
         ['id' => 'amber', 'label' => 'Amber', 'kind' => 'initials'],
         ['id' => 'rose', 'label' => 'Rose', 'kind' => 'initials'],
-        ['id' => 'shield', 'label' => 'Shield', 'kind' => 'icon', 'ic' => 'shield'],
-        ['id' => 'responder', 'label' => 'Responder', 'kind' => 'icon', 'ic' => 'radar'],
-        ['id' => 'rings', 'label' => 'Highlight', 'kind' => 'icon', 'ic' => 'sparkles'],
-        ['id' => 'shapes', 'label' => 'Shapes', 'kind' => 'icon', 'ic' => 'shapes'],
-        ['id' => 'grid', 'label' => 'Grid', 'kind' => 'icon', 'ic' => 'grid'],
+        ['id' => 'shield', 'label' => 'Shield', 'kind' => 'image', 'img' => '/assets/images/badges/badge_shield.jpg'],
+        ['id' => 'responder', 'label' => 'Responder', 'kind' => 'image', 'img' => '/assets/images/badges/badge_responder.jpg'],
+        ['id' => 'rings', 'label' => 'Highlight', 'kind' => 'image', 'img' => '/assets/images/badges/badge_highlight.jpg'],
+        ['id' => 'shapes', 'label' => 'Shapes', 'kind' => 'image', 'img' => '/assets/images/badges/badge_shapes.jpg'],
+        ['id' => 'grid', 'label' => 'Grid', 'kind' => 'image', 'img' => '/assets/images/badges/badge_grid.jpg'],
     ];
 }
 
@@ -277,6 +277,10 @@ function icon(string $name, int $size = 20): string
         'shapes' => '<path d="M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="3.5"/>',
         'grid' => '<rect width="7" height="7" x="3" y="3" rx="1"/><rect width="7" height="7" x="14" y="3" rx="1"/><rect width="7" height="7" x="14" y="14" rx="1"/><rect width="7" height="7" x="3" y="14" rx="1"/>',
         'check-simple' => '<path d="M20 6 9 17l-5-5"/>',
+        'edit' => '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+        'download' => '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/>',
+        'globe' => '<circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/>',
+        'message' => '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
     ];
     return '<svg class="icon" width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">' . ($p[$name] ?? $p['file']) . '</svg>';
 }
@@ -292,11 +296,6 @@ function renderAvatar(?array $profile, string $extraClass = '', bool $withStatus
     $shape = ($profile['avatar_shape'] ?? 'circle') === 'badge' ? 'badge' : 'circle';
     $imgUrl = $type === 'image' ? sanitizeAvatarUrl($profile['avatar_url'] ?? '') : '';
 
-    $classes = ['avatar'];
-    if ($extraClass !== '') $classes[] = $extraClass;
-    $classes[] = $shape === 'badge' ? 'av-shape-badge' : 'av-shape-circle';
-    $classes[] = $imgUrl !== '' ? 'av-has-img' : 'av-style-' . $styleId;
-
     $styleMeta = $styles[0];
     foreach ($styles as $s) {
         if ($s['id'] === $styleId) {
@@ -305,9 +304,17 @@ function renderAvatar(?array $profile, string $extraClass = '', bool $withStatus
         }
     }
 
+    $classes = ['avatar'];
+    if ($extraClass !== '') $classes[] = $extraClass;
+    $classes[] = $shape === 'badge' ? 'av-shape-badge' : 'av-shape-circle';
+    $hasBadgeImg = $imgUrl === '' && ($styleMeta['kind'] ?? '') === 'image';
+    $classes[] = ($imgUrl !== '' || $hasBadgeImg) ? 'av-has-img' : 'av-style-' . $styleId;
+
     if ($imgUrl !== '') {
-        $inner = '<img class="avatar-img" src="' . e($imgUrl) . '" alt="' . e($name) . '">';
-    } elseif ($styleMeta['kind'] === 'icon') {
+        $inner = '<img class="avatar-img" src="' . e($imgUrl) . '" alt="' . e($name) . '" referrerpolicy="no-referrer">';
+    } elseif (($styleMeta['kind'] ?? '') === 'image') {
+        $inner = '<img class="avatar-img" src="' . e(BASE_URL . $styleMeta['img']) . '" alt="' . e($styleMeta['label'] . ' badge') . '" referrerpolicy="no-referrer">';
+    } elseif (($styleMeta['kind'] ?? '') === 'icon') {
         $sz = str_contains($extraClass, 'avatar-xl') ? 28 : (str_contains($extraClass, 'avatar-lg') ? 22 : 17);
         $inner = '<span class="avatar-glyph" aria-hidden="true">' . icon($styleMeta['ic'], $sz) . '</span>';
     } else {

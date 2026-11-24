@@ -170,8 +170,10 @@
                     <button type="button"
                       class="pm-style-tile<?= ($userProfile['avatar_type'] !== 'image' && ($userProfile['avatar_style'] ?: 'initials') === $bs['id']) ? ' is-selected' : '' ?>"
                       data-pm-badge="<?= e($bs['id']) ?>">
-                      <span class="pm-badge-dot av-style-<?= e($bs['id']) ?>">
-                        <?php if ($bs['kind'] === 'icon'): ?>
+                      <span class="pm-badge-dot av-style-<?= e($bs['id']) ?><?= ($bs['kind'] ?? '') === 'image' ? ' av-has-img' : '' ?>">
+                        <?php if (($bs['kind'] ?? '') === 'image'): ?>
+                          <img class="pm-badge-img" src="<?= e(BASE_URL . $bs['img']) ?>" alt="<?= e($bs['label']) ?> badge" referrerpolicy="no-referrer">
+                        <?php elseif (($bs['kind'] ?? '') === 'icon'): ?>
                           <?= icon($bs['ic'], 13) ?>
                         <?php else: ?>
                           <span data-user-initials><?= e(initials($userProfile['full_name'])) ?></span>

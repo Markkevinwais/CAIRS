@@ -753,6 +753,63 @@ header('X-Content-Type-Options: nosniff');
         });
       }
     }
+
+    // 10e. Admin Settings: barangay center coordinate picker
+    var settingsEl = document.getElementById('settings-map-picker');
+    if (settingsEl && !settingsEl._leafletMap) {
+      var sLatIn = document.getElementById('map_lat');
+      var sLngIn = document.getElementById('map_lng');
+      var sReadout = document.getElementById('settings-map-readout');
+      var initCenter = centerOf(settingsEl);
+      var sMap = L.map(settingsEl, mapOpts).setView(initCenter, 14);
+      addTiles(sMap);
+      settingsEl._leafletMap = sMap;
+
+      var sPin = L.marker(initCenter, { draggable: true }).addTo(sMap);
+      sPin.bindPopup('Default Barangay Center');
+
+      function applySettingsCoords(lat, lng, pan) {
+        if (isNaN(lat) || isNaN(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return;
+        sPin.setLatLng([lat, lng]);
+        if (sLatIn) sLatIn.value = lat.toFixed(6);
+        if (sLngIn) sLngIn.value = lng.toFixed(6);
+        if (sReadout) sReadout.textContent = 'Center: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
+        if (pan) sMap.setView([lat, lng], Math.max(sMap.getZoom(), 15));
+      }
+
+      sMap.on('click', function (ev) {
+        applySettingsCoords(ev.latlng.lat, ev.latlng.lng, false);
+      });
+      sPin.on('dragend', function () {
+        var pos = sPin.getLatLng();
+        applySettingsCoords(pos.lat, pos.lng, false);
+      });
+
+      var sLocate = document.getElementById('settings-locate');
+      if (sLocate) {
+        sLocate.addEventListener('click', function () {
+          if (!navigator.geolocation) { showToast('Your browser does not support location.', 'error'); return; }
+          navigator.geolocation.getCurrentPosition(function (pos) {
+            applySettingsCoords(pos.coords.latitude, pos.coords.longitude, true);
+          }, function () {
+            showToast('Could not detect your location. Click the map instead.', 'error');
+          });
+        });
+      }
+
+      [sLatIn, sLngIn].forEach(function (inp) {
+        if (!inp) return;
+        inp.addEventListener('change', function () {
+          var la = parseFloat(sLatIn ? sLatIn.value : '');
+          var ln = parseFloat(sLngIn ? sLngIn.value : '');
+          if (!isNaN(la) && !isNaN(ln) && Math.abs(la) <= 90 && Math.abs(ln) <= 180) {
+            sPin.setLatLng([la, ln]);
+            sMap.setView([la, ln], Math.max(sMap.getZoom(), 14));
+            if (sReadout) sReadout.textContent = 'Center: ' + la.toFixed(5) + ', ' + ln.toFixed(5);
+          }
+        });
+      });
+    }
   }
 
 
@@ -837,6 +894,8 @@ header('X-Content-Type-Options: nosniff');
       sparkles: ['m12 3-1.912 5.813a2 2 0 0 1-1.275 1.275L3 12l5.813 1.912a2 2 0 0 1 1.275 1.275L12 21l1.912-5.813a2 2 0 0 1 1.275-1.275L21 12l-5.813-1.912a2 2 0 0 1-1.275-1.275L12 3Z'],
       shapes: ['M8.3 10a.7.7 0 0 1-.626-1.079L11.4 3a.7.7 0 0 1 1.198-.043L16.3 8.9a.7.7 0 0 1-.572 1.1Z', 'M3 15a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z', 'M17.5 14a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7Z'],
       grid: ['M3 4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z', 'M14 4a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1z', 'M14 15a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1h-5a1 1 0 0 1-1-1z', 'M3 15a1 1 0 0 1 1-1h5a1 1 0 0 1 1 1v5a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z'],
+      megaphone: ['m3 11 18-5v12L3 14v-3z', 'M11.6 16.8a3 3 0 1 1-5.8-1.6'],
+      plus: ['M5 12h14', 'M12 5v14'],
     };
     (paths[kind] || paths.bell).forEach(function (d) {
       var p = document.createElementNS(ns, 'path');
@@ -1123,7 +1182,7 @@ header('X-Content-Type-Options: nosniff');
   /* 12. SMOOTH IN-APP NAVIGATION (keeps sidebar/topbar persistent) -------- */
   function ensureLeaflet(cb) {
     if (window.L) { cb(); return; }
-    var needsMap = $('#map-picker') || $('#map-view') || $('#map-all') || $('#dispatch-map');
+    var needsMap = $('#map-picker') || $('#map-view') || $('#map-all') || $('#dispatch-map') || $('#settings-map-picker');
     if (!needsMap) { cb(); return; }
 
     var cssHref = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css';
@@ -1450,6 +1509,7 @@ header('X-Content-Type-Options: nosniff');
     initPhotoPreview();
     initPrint();
     initModernSelects();
+    initAdminWorkspace();
     if (isSwap) {
       ensureLeaflet(initMaps);
     } else {
@@ -1462,6 +1522,7 @@ header('X-Content-Type-Options: nosniff');
     if (!document.body.classList.contains('app')) return;
 
     var navSeq = 0;
+    var lastSpaPathQuery = window.location.pathname + window.location.search;
 
     function navigate(url, push) {
       var parsed;
@@ -1489,10 +1550,15 @@ header('X-Content-Type-Options: nosniff');
           var newMain = doc.getElementById('main');
           if (!main || !newMain) { window.location.href = res.finalUrl; return; }
 
-          // Remove floating menus & modals moved onto document.body by previous page scripts
+          // Remove floating menus & modals left open before swapping #main
           closeActiveSelect(false);
+          $all('.modal.is-open').forEach(function (m) { m.classList.remove('is-open', 'is-mounted'); });
+          document.body.classList.remove('has-modal');
           var oldSos = document.getElementById('sos-modal');
           if (oldSos && oldSos.parentNode === document.body) oldSos.remove();
+
+          // Strip Leaflet assets inside #main so stylesheets don't mount/unmount per route
+          $all('link[href*="leaflet"], script[src*="leaflet"]', newMain).forEach(function (el) { el.remove(); });
 
           document.title = doc.title;
           main.innerHTML = newMain.innerHTML;
@@ -1530,10 +1596,11 @@ header('X-Content-Type-Options: nosniff');
 
           var dest = new URL(res.finalUrl, window.location.href);
           if (parsed.hash && !dest.hash) dest.hash = parsed.hash;
+          lastSpaPathQuery = dest.pathname + dest.search;
           if (push) history.pushState({ spa: true }, '', dest.pathname + dest.search + dest.hash);
 
-          runMainScripts(main);
-          initPage(true);
+          try { runMainScripts(main); } catch (err) { if (window.console && console.error) console.error(err); }
+          try { initPage(true); } catch (err) { if (window.console && console.error) console.error(err); }
 
           if (dest.hash) {
             var target = document.getElementById(dest.hash.slice(1));
@@ -1545,6 +1612,7 @@ header('X-Content-Type-Options: nosniff');
           }
         })
         .catch(function () {
+          if (main) main.style.opacity = '';
           window.location.href = parsed.href;
         });
     }
@@ -1563,12 +1631,27 @@ header('X-Content-Type-Options: nosniff');
       if (url.origin !== window.location.origin) return;
       if (url.pathname.indexOf('/logout') !== -1 || url.search.indexOf('export=') !== -1) return;
 
-      // Same path & query with only a hash jump: let the browser scroll directly & glide pill
+      // Same path & query: avoid re-fetching or duplicating history; scroll smoothly instead
       if (url.pathname === window.location.pathname && url.search === window.location.search) {
         if (a.closest && a.closest('.sidebar nav') && sidebarNavApi) {
           sidebarNavApi.setActiveByUrl(url);
         }
-        if (url.hash) return;
+        if (url.hash) {
+          var hashTarget = document.getElementById(url.hash.slice(1));
+          if (url.hash === window.location.hash) {
+            e.preventDefault();
+            if (hashTarget) hashTarget.scrollIntoView({ behavior: 'smooth' });
+          }
+          return;
+        }
+        e.preventDefault();
+        if (window.location.hash) {
+          history.replaceState(history.state, '', url.pathname + url.search);
+        }
+        var scroller = $('.main-scroll');
+        if (scroller) scroller.scrollTo({ top: 0, behavior: 'smooth' });
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        return;
       }
 
       if (a.closest && a.closest('.sidebar nav') && sidebarNavApi) {
@@ -1593,6 +1676,21 @@ header('X-Content-Type-Options: nosniff');
     });
 
     window.addEventListener('popstate', function () {
+      var curPathQuery = window.location.pathname + window.location.search;
+      if (curPathQuery === lastSpaPathQuery) {
+        if (sidebarNavApi) {
+          try { sidebarNavApi.setActiveByUrl(new URL(window.location.href)); } catch (_) {}
+        }
+        if (window.location.hash) {
+          var target = document.getElementById(window.location.hash.slice(1));
+          if (target) target.scrollIntoView({ behavior: 'smooth' });
+        } else {
+          var scroller = $('.main-scroll');
+          if (scroller) scroller.scrollTo({ top: 0, behavior: 'smooth' });
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+        return;
+      }
       navigate(window.location.href, false);
     });
   }
@@ -1690,12 +1788,12 @@ header('X-Content-Type-Options: nosniff');
     var urlInput = document.getElementById('pm-avatar-url-input');
     var urlApply = document.getElementById('pm-url-apply');
 
-    var BADGE_ICONS = {
-      shield: 'shield',
-      responder: 'radar',
-      rings: 'sparkles',
-      shapes: 'shapes',
-      grid: 'grid',
+    var BADGE_IMAGES = {
+      shield: '/assets/images/badges/badge_shield.jpg',
+      responder: '/assets/images/badges/badge_responder.jpg',
+      rings: '/assets/images/badges/badge_highlight.jpg',
+      shapes: '/assets/images/badges/badge_shapes.jpg',
+      grid: '/assets/images/badges/badge_grid.jpg',
     };
     var ALL_BADGE_CLASSES = [
       'av-style-initials', 'av-style-indigo', 'av-style-emerald', 'av-style-amber', 'av-style-rose',
@@ -1831,31 +1929,24 @@ header('X-Content-Type-Options: nosniff');
       el.classList.add(state.avatar_shape === 'badge' ? 'av-shape-badge' : 'av-shape-circle');
 
       var imgSrc = state.avatar_type === 'image' ? (state.avatar_data || state.avatar_url) : '';
+      var styleId = state.avatar_style || 'initials';
+      var badgeImgSrc = !imgSrc ? (BADGE_IMAGES[styleId] || '') : '';
       el.textContent = '';
 
-      if (imgSrc) {
+      if (imgSrc || badgeImgSrc) {
         el.classList.add('av-has-img');
         var img = document.createElement('img');
         img.className = 'avatar-img';
-        img.src = imgSrc;
-        img.alt = displayName || '';
+        img.referrerPolicy = 'no-referrer';
+        img.src = imgSrc || badgeImgSrc;
+        img.alt = imgSrc ? (displayName || '') : (styleId + ' badge');
         el.appendChild(img);
       } else {
-        var styleId = state.avatar_style || 'initials';
         el.classList.add('av-style-' + styleId);
-        if (BADGE_ICONS[styleId]) {
-          var glyph = document.createElement('span');
-          glyph.className = 'avatar-glyph';
-          glyph.setAttribute('aria-hidden', 'true');
-          var sz = el.classList.contains('avatar-xl') ? 28 : el.classList.contains('avatar-lg') ? 22 : 17;
-          glyph.appendChild(createSvgIcon(BADGE_ICONS[styleId], sz));
-          el.appendChild(glyph);
-        } else {
-          var span = document.createElement('span');
-          span.setAttribute('data-user-initials', '');
-          span.textContent = computeInitials(displayName);
-          el.appendChild(span);
-        }
+        var span = document.createElement('span');
+        span.setAttribute('data-user-initials', '');
+        span.textContent = computeInitials(displayName);
+        el.appendChild(span);
       }
       if (keepStatus) el.appendChild(statusNode);
     }
@@ -2272,6 +2363,268 @@ header('X-Content-Type-Options: nosniff');
           }
         });
     });
+  }
+
+
+  /* 14. ADMIN WORKSPACE ENHANCEMENTS (RUNS ON INITIAL LOAD & SPA SWAPS) - */
+  function initAdminWorkspace() {
+    var mainEl = document.getElementById('main');
+    if (!mainEl) return;
+
+    // 14a. Password eye toggles inside page cards/modals
+    $all('[data-pm-eye]', mainEl).forEach(function (eyeBtn) {
+      eyeBtn.addEventListener('click', function () {
+        var target = document.getElementById(eyeBtn.getAttribute('data-pm-eye'));
+        if (!target) return;
+        var show = target.type === 'password';
+        target.type = show ? 'text' : 'password';
+        eyeBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      });
+    });
+
+    // 14b. Temporary password generator buttons
+    $all('[data-pw-gen]', mainEl).forEach(function (genBtn) {
+      genBtn.addEventListener('click', function () {
+        var target = document.getElementById(genBtn.getAttribute('data-pw-gen'));
+        if (!target) return;
+        var chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$';
+        var pw = '';
+        for (var i = 0; i < 10; i++) {
+          pw += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        target.type = 'text';
+        target.value = pw;
+        target.focus();
+        showToast('Temporary password generated. Copy and share securely with the user.', 'success');
+      });
+    });
+
+    // 14c. Resident & Volunteer edit modal populator
+    $all('[data-res-edit]', mainEl).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idEl = document.getElementById('res-edit-id');
+        var nameEl = document.getElementById('res-edit-name');
+        var emailEl = document.getElementById('res-edit-email');
+        var phoneEl = document.getElementById('res-edit-phone');
+        var addrEl = document.getElementById('res-edit-address');
+        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+        if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
+        if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
+        if (phoneEl) phoneEl.value = btn.getAttribute('data-phone') || '';
+        if (addrEl) addrEl.value = btn.getAttribute('data-address') || '';
+      });
+    });
+
+    $all('[data-vol-edit]', mainEl).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idEl = document.getElementById('vol-edit-id');
+        var nameEl = document.getElementById('vol-edit-name');
+        var emailEl = document.getElementById('vol-edit-email');
+        var phoneEl = document.getElementById('vol-edit-phone');
+        var addrEl = document.getElementById('vol-edit-address');
+        var pwEl = document.getElementById('vol-edit-password');
+        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+        if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
+        if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
+        if (phoneEl) phoneEl.value = btn.getAttribute('data-phone') || '';
+        if (addrEl) addrEl.value = btn.getAttribute('data-address') || '';
+        if (pwEl) pwEl.value = '';
+      });
+    });
+
+    // 14d. Announcements composer: counters, live resident preview, edit modal
+    var annTitle = document.getElementById('ann-composer-title');
+    var annBody = document.getElementById('ann-composer-body');
+    var annLevel = document.getElementById('ann-composer-level');
+    var annPreview = document.getElementById('ann-live-preview');
+    var annTitleCnt = document.getElementById('ann-title-count');
+    var annBodyCnt = document.getElementById('ann-body-count');
+
+    function syncAnnComposer() {
+      var tt = annTitle ? annTitle.value : '';
+      var bd = annBody ? annBody.value : '';
+      var lv = annLevel ? annLevel.value : 'info';
+      if (annTitleCnt) {
+        annTitleCnt.textContent = tt.length + ' / 150';
+        annTitleCnt.classList.toggle('is-near', tt.length >= 120 && tt.length < 150);
+        annTitleCnt.classList.toggle('is-limit', tt.length >= 150);
+      }
+      if (annBodyCnt) {
+        annBodyCnt.textContent = bd.length + ' / 2000';
+        annBodyCnt.classList.toggle('is-near', bd.length >= 1700 && bd.length < 2000);
+        annBodyCnt.classList.toggle('is-limit', bd.length >= 2000);
+      }
+      if (annPreview) {
+        annPreview.className = 'ann ann-' + (['info', 'warning', 'critical'].indexOf(lv) !== -1 ? lv : 'info');
+        var pvTitle = document.getElementById('ann-pv-title');
+        var pvBody = document.getElementById('ann-pv-body');
+        var pvLevel = document.getElementById('ann-pv-level');
+        var pvIc = document.getElementById('ann-pv-ic');
+        if (pvTitle) pvTitle.textContent = tt.trim() || 'Your announcement headline will appear here';
+        if (pvBody) pvBody.textContent = bd.trim() || 'Write a concise notice for residents and responders. Active alerts display at the top of dashboards.';
+        if (pvLevel) pvLevel.textContent = lv.charAt(0).toUpperCase() + lv.slice(1);
+        if (pvIc) {
+          pvIc.textContent = '';
+          pvIc.appendChild(createSvgIcon(lv === 'critical' ? 'siren' : 'megaphone', 20));
+        }
+      }
+    }
+    if (annTitle || annBody || annLevel) {
+      [annTitle, annBody].forEach(function (el) { if (el) el.addEventListener('input', syncAnnComposer); });
+      if (annLevel) annLevel.addEventListener('change', syncAnnComposer);
+      syncAnnComposer();
+    }
+
+    $all('[data-ann-edit]', mainEl).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idEl = document.getElementById('ann-edit-id');
+        var tEl = document.getElementById('ann-edit-title');
+        var lEl = document.getElementById('ann-edit-level');
+        var bEl = document.getElementById('ann-edit-body');
+        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+        if (tEl) tEl.value = btn.getAttribute('data-title') || '';
+        if (bEl) bEl.value = btn.getAttribute('data-body') || '';
+        if (lEl) {
+          lEl.value = btn.getAttribute('data-level') || 'info';
+          lEl.dispatchEvent(new Event('change'));
+        }
+      });
+    });
+
+    // 14e. Categories: live auto-priority prediction
+    var catInput = document.getElementById('cat-add-name');
+    var catBadge = document.getElementById('cat-prio-badge');
+    if (catInput && catBadge) {
+      var HIGH_CATS = ['fire', 'medical emergency', 'flood', 'road accident', 'theft / crime'];
+      var LOW_CATS = ['noise disturbance', 'garbage / sanitation', 'broken streetlight / road'];
+      function syncCatPrio() {
+        var v = catInput.value.trim().toLowerCase();
+        var pr = HIGH_CATS.indexOf(v) !== -1 ? 'high' : (LOW_CATS.indexOf(v) !== -1 ? 'low' : 'medium');
+        catBadge.className = 'badge p-' + pr;
+        catBadge.textContent = pr.charAt(0).toUpperCase() + pr.slice(1);
+      }
+      catInput.addEventListener('input', syncCatPrio);
+      syncCatPrio();
+    }
+
+    // 14f. Settings workspace tabs, live hotline preview, SMS counter, password strength
+    var settingsNavBtns = $all('.settings-nav-btn[data-settings-tab]', mainEl);
+    var settingsPanels = $all('[data-settings-panel]', mainEl);
+    if (settingsNavBtns.length && settingsPanels.length) {
+      function showSettingsTab(tab) {
+        settingsNavBtns.forEach(function (b) {
+          b.classList.toggle('is-active', b.getAttribute('data-settings-tab') === tab);
+        });
+        settingsPanels.forEach(function (p) {
+          p.hidden = tab !== 'all' && p.getAttribute('data-settings-panel') !== tab;
+        });
+        var sMapEl = document.getElementById('settings-map-picker');
+        if (sMapEl && sMapEl._leafletMap) {
+          setTimeout(function () { sMapEl._leafletMap.invalidateSize(); }, 80);
+        }
+      }
+      settingsNavBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          showSettingsTab(btn.getAttribute('data-settings-tab') || 'all');
+        });
+      });
+    }
+
+    var hotPreview = document.getElementById('hotline-live-preview');
+    if (hotPreview) {
+      var hotInputs = [
+        ['Emergency', 'emergency_hotline', 'siren'],
+        ['Fire', 'hotline_fire', 'flame'],
+        ['Police', 'hotline_police', 'shield'],
+        ['Medical', 'hotline_medical', 'plus'],
+      ];
+      function syncHotlinePreview() {
+        hotPreview.textContent = '';
+        var any = false;
+        hotInputs.forEach(function (pair) {
+          var inp = document.getElementById(pair[1]);
+          var val = inp ? inp.value.trim() : '';
+          if (!val) return;
+          any = true;
+          var item = document.createElement('div');
+          item.className = 'hotline';
+          item.appendChild(createSvgIcon(pair[2], 18));
+          var span = document.createElement('span');
+          var sm = document.createElement('small');
+          var b = document.createElement('b');
+          sm.textContent = pair[0];
+          b.textContent = val;
+          span.appendChild(sm);
+          span.appendChild(b);
+          item.appendChild(span);
+          hotPreview.appendChild(item);
+        });
+        if (!any) {
+          var empty = document.createElement('p');
+          empty.className = 'muted';
+          empty.style.margin = '0';
+          empty.textContent = 'All hotline tiles are hidden when every field is left blank.';
+          hotPreview.appendChild(empty);
+        }
+      }
+      hotInputs.forEach(function (pair) {
+        var inp = document.getElementById(pair[1]);
+        if (inp) inp.addEventListener('input', syncHotlinePreview);
+      });
+      syncHotlinePreview();
+    }
+
+    var smsSender = document.getElementById('sms_sender');
+    var smsCounter = document.getElementById('sms-sender-count');
+    if (smsSender && smsCounter) {
+      function syncSmsCount() {
+        var len = smsSender.value.length;
+        smsCounter.textContent = len + ' / 11 chars';
+        smsCounter.classList.toggle('is-limit', len >= 11);
+      }
+      smsSender.addEventListener('input', syncSmsCount);
+      syncSmsCount();
+    }
+
+    var secNewPw = document.getElementById('sec-pw-new');
+    var secFill = document.getElementById('sec-pw-fill');
+    var secHint = document.getElementById('sec-pw-hint');
+    if (secNewPw && secFill && secHint) {
+      function syncSecPw() {
+        var val = secNewPw.value || '';
+        if (!val) {
+          secFill.style.width = '0%';
+          secFill.style.background = 'var(--primary)';
+          secHint.textContent = 'Minimum 6 characters; mix letters, numbers & symbols';
+          return;
+        }
+        var score = 0;
+        if (val.length >= 6) score++;
+        if (val.length >= 10) score++;
+        if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score++;
+        if (/[0-9]/.test(val)) score++;
+        if (/[^A-Za-z0-9]/.test(val)) score++;
+        if (val.length < 6) {
+          secFill.style.width = '20%';
+          secFill.style.background = '#dc2626';
+          secHint.textContent = 'Too short \u2014 add at least ' + (6 - val.length) + ' more character(s)';
+        } else if (score <= 2) {
+          secFill.style.width = '48%';
+          secFill.style.background = '#d97706';
+          secHint.textContent = 'Fair strength \u2014 add numbers or symbols';
+        } else if (score <= 3) {
+          secFill.style.width = '76%';
+          secFill.style.background = '#047857';
+          secHint.textContent = 'Good password strength';
+        } else {
+          secFill.style.width = '100%';
+          secFill.style.background = '#16a34a';
+          secHint.textContent = 'Strong password';
+        }
+      }
+      secNewPw.addEventListener('input', syncSecPw);
+      syncSecPw();
+    }
   }
 
 
