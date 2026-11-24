@@ -1,0 +1,17 @@
+<%- include('../partials/header', { title: 'Residents' }) %>
+<h1>Residents</h1>
+<div class="card tablewrap">
+<% if (!rows.length) { %><p class="empty">No residents have registered yet.</p><% } else { %>
+<table>
+  <tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>Reports</th><th>Status</th><th></th></tr>
+  <% for (const u of rows) { %>
+  <tr><td><%= u.full_name %></td><td><%= u.email %></td><td><%= u.phone || '' %></td><td><%= u.address || '' %></td>
+      <td><%= u.total %></td><td><%= u.status.charAt(0).toUpperCase() + u.status.slice(1) %></td>
+      <td><form method="post" data-confirm="Change this resident's status?"><%- csrfField() %>
+        <input type="hidden" name="id" value="<%= u.id %>">
+        <button class="btn small <%= u.status === 'active' ? 'danger' : '' %>" type="submit"><%= u.status === 'active' ? 'Deactivate' : 'Activate' %></button></form></td></tr>
+  <% } %>
+</table>
+<% } %>
+</div>
+<%- include('../partials/footer') %>

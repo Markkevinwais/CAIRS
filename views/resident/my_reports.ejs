@@ -1,0 +1,23 @@
+<%- include('../partials/header', { title: 'My reports' }) %>
+<div class="page-head"><h1>My reports</h1><a class="btn" href="report.php">Report an incident</a></div>
+<form class="filters" method="get">
+  <select name="status" onchange="this.form.requestSubmit ? this.form.requestSubmit() : this.form.submit()" aria-label="Filter by status">
+    <option value="">All statuses</option>
+    <% for (const s of ['pending','assigned','in_progress','resolved','rejected']) { %>
+      <option value="<%= s %>" <%= status === s ? 'selected' : '' %>><%= statusLabel(s) %></option>
+    <% } %>
+  </select>
+</form>
+<div class="card tablewrap">
+<% if (!rows.length) { %><p class="empty">No reports found.</p><% } else { %>
+<table>
+  <tr><th>Ref</th><th>Title</th><th>Category</th><th>Filed</th><th>Status</th><th></th></tr>
+  <% for (const r of rows) { %>
+  <tr><td><%= refNo(r.id) %></td><td><%= r.title %></td><td><%= r.category %></td>
+      <td><%= fmtDate(r.created_at) %></td><td><%- badge(r.status) %></td>
+      <td><a href="report_details.php?id=<%= r.id %>">View</a></td></tr>
+  <% } %>
+</table>
+<% } %>
+</div>
+<%- include('../partials/footer') %>

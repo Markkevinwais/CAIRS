@@ -1,0 +1,28 @@
+<%- include('../partials/header', { title: 'Report an incident' }) %>
+<h1>Report an incident</h1>
+<div class="card">
+  <% for (const er of errors) { %><div class="flash error"><%= er %></div><% } %>
+  <form method="post" enctype="multipart/form-data">
+    <%- csrfField() %>
+    <label for="category_id">Category</label>
+    <select id="category_id" name="category_id" required>
+      <option value="">Choose one</option>
+      <% for (const c of cats) { %>
+        <option value="<%= c.id %>" <%= String(old.category_id) === String(c.id) ? 'selected' : '' %>><%= c.name %></option>
+      <% } %>
+    </select>
+    <label for="title">Title</label>
+    <input id="title" name="title" maxlength="150" required value="<%= old.title %>">
+    <label for="location">Location</label>
+    <input id="location" name="location" placeholder="Street, purok, or landmark" required value="<%= old.location %>">
+    <label>Pin the exact spot (optional)</label>
+    <%- renderMapPicker(old.latitude, old.longitude) %>
+    <label for="description">What happened?</label>
+    <textarea id="description" name="description" required><%= old.description %></textarea>
+    <label for="photo">Photo (optional, up to 3 MB)</label>
+    <input type="file" id="photo" name="photo" accept="image/jpeg,image/png,image/webp">
+    <div id="preview"></div>
+    <p style="margin-top:18px"><button class="btn" type="submit">Submit report</button></p>
+  </form>
+</div>
+<%- include('../partials/footer') %>

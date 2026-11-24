@@ -1,0 +1,24 @@
+<%- include('../partials/header', { title: 'Dashboard' }) %>
+<%- renderWelcome(user.full_name.split(' ')[0], 'Track your reports and see how your community responds.', `<a class="btn" href="report.php">${icon('plus', 17)} Report an incident</a>`) %>
+<%- renderAnnouncements() %>
+<div class="grid">
+  <%- statCard('file', 'Total reports', total, 'Everything you have filed', 'primary') %>
+  <%- statCard('clock', 'Pending', c.pending || 0, 'Waiting for review', 'warning') %>
+  <%- statCard('loader', 'In progress', open, 'Currently being handled', 'progress') %>
+  <%- statCard('check', 'Resolved', c.resolved || 0, 'Successfully completed', 'success') %>
+</div>
+<div class="two">
+  <div class="card">
+    <div class="card-head"><h2>Your recent reports</h2><a href="my_reports.php">View all</a></div>
+    <% if (!recent.length) { %>
+      <p class="empty">You haven't reported anything yet. <a href="report.php">Report your first incident</a>.</p>
+    <% } else { %>
+      <div class="report-grid">
+        <% for (const r of recent) { %><%- renderReportCard(r, 'report_details.php?id=' + r.id) %><% } %>
+      </div>
+    <% } %>
+  </div>
+  <div class="card"><div class="card-head"><h2>Latest updates</h2></div><%- renderActivity(activity, 'report_details.php?id=') %></div>
+</div>
+<div class="card"><div class="card-head"><h2>Emergency hotlines</h2></div><%- renderHotlines() %></div>
+<%- include('../partials/footer') %>

@@ -1,0 +1,21 @@
+<%- include('../partials/header', { title: 'Dashboard' }) %>
+<%- renderWelcome(user.full_name.split(' ')[0], 'Your assigned incidents, highest priority first.', `<a class="btn ghost" href="assigned_reports.php">${icon('clipboard', 17)} All assignments</a>`) %>
+<%- renderAnnouncements() %>
+<%- renderAlerts(user.id) %>
+<div class="grid">
+  <%- statCard('clipboard', 'New assignments', c.assigned || 0, 'Waiting for you to start', 'warning') %>
+  <%- statCard('loader', 'In progress', c.in_progress || 0, 'Currently being handled', 'progress') %>
+  <%- statCard('check', 'Resolved by you', c.resolved || 0, 'Successfully completed', 'success') %>
+</div>
+<div class="two">
+  <div class="card">
+    <div class="card-head"><h2>Your next tasks</h2></div>
+    <% if (!todo.length) { %><p class="empty">No open assignments. The admin will assign new reports to you.</p><% } else { %>
+      <div class="report-grid">
+        <% for (const r of todo) { %><%- renderReportCard(r, 'report_details.php?id=' + r.id) %><% } %>
+      </div>
+    <% } %>
+  </div>
+  <div class="card"><div class="card-head"><h2>Recent activity</h2></div><%- renderActivity(activity, 'report_details.php?id=') %></div>
+</div>
+<%- include('../partials/footer') %>

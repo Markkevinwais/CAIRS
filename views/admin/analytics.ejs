@@ -1,0 +1,14 @@
+<%- include('../partials/header', { title: 'Analytics' }) %>
+<div class="page-head"><h1>Analytics</h1><button type="button" class="btn ghost small noprint" data-print>Print / Save as PDF</button></div>
+<div class="grid">
+  <%- statCard('file', 'Total reports', total, 'All time', 'primary') %>
+  <%- statCard('check', 'Resolution rate', (total ? Math.round(resolved / total * 100) : 0) + '%', 'Reports resolved', 'success') %>
+  <%- statCard('clock', 'Avg. hours to resolve', avgHours !== null ? avgHours.toFixed(1) : '-', 'From filing to resolved', 'warning') %>
+</div>
+<div class="two even">
+  <div class="card"><div class="card-head"><h2>Reports by category</h2></div><%- renderBars(byCat) %></div>
+  <div class="card"><div class="card-head"><h2>Reports by status</h2></div><%- renderBars(byStatus, statusTones()) %></div>
+</div>
+<div class="card"><div class="card-head"><h2>Last 6 months</h2></div><%- renderColumns(byMonth) %></div>
+<%- renderIncidentMap('Incident map', 420) %>
+<%- include('../partials/footer') %>

@@ -1,0 +1,71 @@
+</main>
+<% if (user) { %></div><% } %>
+<% if (user && userProfile) { %>
+<div class="modal" id="profile-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog modal-profile" role="dialog" aria-modal="true" aria-labelledby="profile-modal-title">
+    <div class="modal-head">
+      <div class="profile-hero">
+        <span class="avatar avatar-lg" data-user-initials><%= initials(userProfile.full_name) %></span>
+        <div class="profile-hero-meta">
+          <h3 id="profile-modal-title" data-user-name><%= userProfile.full_name %></h3>
+          <p class="muted"><%= userProfile.email %></p>
+          <span class="badge s-assigned"><%= userProfile.role.charAt(0).toUpperCase() + userProfile.role.slice(1) %></span>
+        </div>
+      </div>
+      <button type="button" class="notif-head-ic" data-modal-close aria-label="Close profile dialog"><%- icon('x', 16) %></button>
+    </div>
+
+    <div class="flash error" id="profile-modal-err" hidden></div>
+
+    <form id="profile-modal-form" autocomplete="off">
+      <label for="pm-email">Email</label>
+      <input id="pm-email" type="email" value="<%= userProfile.email %>" disabled>
+
+      <div class="form-row">
+        <div>
+          <label for="pm-name">Full name</label>
+          <input id="pm-name" name="full_name" required value="<%= userProfile.full_name %>">
+        </div>
+        <div>
+          <label for="pm-phone">Mobile number</label>
+          <input id="pm-phone" name="phone" value="<%= userProfile.phone %>">
+        </div>
+      </div>
+
+      <label for="pm-address">Address / Purok</label>
+      <input id="pm-address" name="address" <%= userProfile.role === 'resident' ? 'required' : '' %> value="<%= userProfile.address %>">
+
+      <div class="profile-pw-sep">
+        <span>Change password (optional)</span>
+      </div>
+      <div class="form-row">
+        <div>
+          <label for="pm-cur-pw">Current password</label>
+          <input id="pm-cur-pw" type="password" name="current_password" placeholder="Current password">
+        </div>
+        <div>
+          <label for="pm-new-pw">New password</label>
+          <input id="pm-new-pw" type="password" name="new_password" placeholder="Min. 6 characters">
+        </div>
+      </div>
+
+      <div class="modal-actions modal-actions-split">
+        <div class="modal-actions-left">
+          <% if (userProfile.role === 'admin') { %>
+            <a class="btn ghost small" href="<%= BASE_URL %>/admin/settings.php" data-modal-close><%- icon('sliders', 15) %> Settings</a>
+          <% } %>
+          <a class="btn ghost danger small" href="<%= BASE_URL %>/logout.php"><%- icon('logout', 15) %> Log out</a>
+        </div>
+        <div class="modal-actions-right">
+          <button type="button" class="btn ghost" data-modal-close>Cancel</button>
+          <button type="submit" class="btn" id="pm-save-btn">Save changes</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+<% } %>
+<script src="<%= BASE_URL %>/assets/js/script.js"></script>
+</body>
+</html>

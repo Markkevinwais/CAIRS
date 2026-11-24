@@ -1,0 +1,31 @@
+<%- include('../partials/header', { title: 'Volunteers' }) %>
+<h1>Volunteers</h1>
+<div class="two">
+  <div class="card tablewrap">
+  <% if (!rows.length) { %><p class="empty">No volunteers yet. Add the first one.</p><% } else { %>
+  <table>
+    <tr><th>Name</th><th>Contact</th><th>Active</th><th>Resolved</th><th>Status</th><th></th></tr>
+    <% for (const u of rows) { %>
+    <tr><td><%= u.full_name %></td><td><%= u.email %><br><span class="muted"><%= u.phone || '' %></span></td>
+        <td><%= u.active_jobs %></td><td><%= u.done %></td><td><%= u.status.charAt(0).toUpperCase() + u.status.slice(1) %></td>
+        <td><form method="post" data-confirm="Change this volunteer's status?"><%- csrfField() %>
+          <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<%= u.id %>">
+          <button class="btn small <%= u.status === 'active' ? 'danger' : '' %>" type="submit"><%= u.status === 'active' ? 'Deactivate' : 'Activate' %></button></form></td></tr>
+    <% } %>
+  </table>
+  <% } %>
+  </div>
+  <div class="card">
+    <h2>Add a volunteer</h2>
+    <% for (const er of errors) { %><div class="flash error"><%= er %></div><% } %>
+    <form method="post">
+      <%- csrfField() %><input type="hidden" name="action" value="add">
+      <label for="full_name">Full name</label><input id="full_name" name="full_name" required value="<%= old.full_name %>">
+      <label for="email">Email</label><input type="email" id="email" name="email" required value="<%= old.email %>">
+      <label for="phone">Mobile number</label><input id="phone" name="phone" value="<%= old.phone %>">
+      <label for="password">Temporary password</label><input type="password" id="password" name="password" required minlength="6">
+      <p style="margin-top:16px"><button class="btn" type="submit">Create volunteer</button></p>
+    </form>
+  </div>
+</div>
+<%- include('../partials/footer') %>
