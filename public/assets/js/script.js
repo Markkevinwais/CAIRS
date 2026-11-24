@@ -1489,12 +1489,17 @@
     var bellBtn = document.getElementById('notif-bell-btn');
     var detailsEl = document.getElementById('sp-details-text');
 
-    var stepPill = document.getElementById('pm-step-pill');
+    var tabSlider = document.getElementById('pm-tab-slider');
     var navBtns = $all('[data-pm-tab]', modal);
     var panes = $all('[data-pm-pane]', modal);
     var shapeBtns = $all('[data-pm-shape]', modal);
     var badgeChips = $all('[data-pm-badge]', modal);
     var specEl = document.getElementById('pm-avatar-spec');
+    var modeEl = document.getElementById('pm-avatar-mode');
+    var metaPhoneEl = document.getElementById('pm-meta-phone');
+    var metaAddressEl = document.getElementById('pm-meta-address');
+    var pwFill = document.getElementById('pm-pw-fill');
+    var pwHint = document.getElementById('pm-pw-hint');
     var cropFab = document.getElementById('pm-crop-fab');
     var cropBtn = document.getElementById('pm-crop-btn');
     var uploadBtn = document.getElementById('pm-upload-btn');
@@ -1545,6 +1550,8 @@
     };
     var camStream = null;
     var cropImg = null;
+    var currentStep = 1;
+    var pillTimer = null;
 
     function computeInitials(name) {
       var words = String(name || '').trim().split(/\s+/).filter(Boolean).slice(0, 2);
@@ -1573,20 +1580,84 @@
       if (urlPanel) urlPanel.hidden = true;
     }
 
-    function switchTab(tabName) {
-      var activeStep = '1';
+    function moveTabSlider(btn, animate) {
+      if (!tabSlider || !btn || !btn.offsetWidth) return;
+      if (!animate) tabSlider.style.transition = 'none';
+      tabSlider.style.transform = 'translateX(' + btn.offsetLeft + 'px)';
+      tabSlider.style.width = btn.offsetWidth + 'px';
+      tabSlider.classList.add('is-ready');
+      if (!animate) {
+        void tabSlider.offsetWidth;
+        tabSlider.style.transition = '';
+      }
+    }
+
+    function updatePasswordMeter() {
+      if (!pwFill || !pwHint) return;
+      var val = newPwInput ? newPwInput.value : '';
+      if (!val) {
+        pwFill.style.width = '0%';
+        pwFill.style.background = 'var(--primary)';
+        pwHint.textContent = 'Optional \u2014 minimum 6 characters to change password';
+        return;
+      }
+      var score = 0;
+      if (val.length >= 6) score += 1;
+      if (val.length >= 10) score += 1;
+      if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score += 1;
+      if (/[0-9]/.test(val)) score += 1;
+      if (/[^A-Za-z0-9]/.test(val)) score += 1;
+
+      if (val.length < 6) {
+        pwFill.style.width = '20%';
+        pwFill.style.background = '#fb7185';
+        pwHint.textContent = 'Too short \u2014 add at least ' + (6 - val.length) + ' more character(s)';
+      } else if (score <= 2) {
+        pwFill.style.width = '48%';
+        pwFill.style.background = '#fbbf24';
+        pwHint.textContent = 'Fair strength \u2014 consider adding numbers or symbols';
+      } else if (score <= 3) {
+        pwFill.style.width = '76%';
+        pwFill.style.background = '#22d3ee';
+        pwHint.textContent = 'Good password strength';
+      } else {
+        pwFill.style.width = '100%';
+        pwFill.style.background = '#34d399';
+        pwHint.textContent = 'Strong password';
+      }
+    }
+
+    function switchTab(tabName, animate) {
+      var activeBtn = null;
+      var nextStep = 1;
       navBtns.forEach(function (b) {
         var on = b.getAttribute('data-pm-tab') === tabName;
         b.classList.toggle('is-active', on);
         b.setAttribute('aria-selected', on ? 'true' : 'false');
-        if (on) activeStep = b.getAttribute('data-pm-step') || '1';
+        if (on) {
+          activeBtn = b;
+          nextStep = parseInt(b.getAttribute('data-pm-step') || '1', 10) || 1;
+        }
       });
+      var dirClass = nextStep >= currentStep ? 'is-slide-right' : 'is-slide-left';
+      var stepChanged = nextStep !== currentStep;
+      currentStep = nextStep;
+
       panes.forEach(function (p) {
         var on = p.getAttribute('data-pm-pane') === tabName;
+        p.classList.remove('is-slide-right', 'is-slide-left');
         p.classList.toggle('is-active', on);
         p.hidden = !on;
+        if (on && animate !== false && stepChanged) {
+          void p.offsetWidth;
+          p.classList.add(dirClass);
+        }
       });
-      if (stepPill) stepPill.textContent = activeStep + ' of 3';
+      if (activeBtn) {
+        requestAnimationFrame(function () {
+          moveTabSlider(activeBtn, animate !== false);
+        });
+      }
     }
 
     function applyAvatarToElement(el, state, displayName) {
@@ -1631,9 +1702,15 @@
     function syncModalPreview() {
       var curName = (nameInput && nameInput.value.trim()) || 'User';
       $all('[data-pm-preview-name]', modal).forEach(function (el) { el.textContent = curName; });
-      $all('.pm-badge-chip [data-user-initials]', modal).forEach(function (el) {
+      $all('.pm-style-tile [data-user-initials]', modal).forEach(function (el) {
         el.textContent = computeInitials(curName);
       });
+      if (metaPhoneEl && phoneInput) {
+        metaPhoneEl.textContent = phoneInput.value.trim() || 'Not set';
+      }
+      if (metaAddressEl && addrInput) {
+        metaAddressEl.textContent = addrInput.value.trim() || 'Not set';
+      }
 
       var modalAvatars = $all('[data-user-avatar]', modal);
       modalAvatars.forEach(function (av) { applyAvatarToElement(av, avatarState, curName); });
@@ -1646,9 +1723,10 @@
         chip.classList.toggle('is-selected', isSel);
       });
       if (specEl) {
-        specEl.textContent = (avatarState.avatar_shape === 'badge' ? 'Badge Avatar' : 'Circle Avatar') + ' \u00b7 256\u00d7256px';
+        specEl.textContent = (avatarState.avatar_shape === 'badge' ? 'Badge' : 'Circle') + ' \u00b7 256\u00d7256px';
       }
       var hasImg = avatarState.avatar_type === 'image' && Boolean(avatarState.avatar_data || avatarState.avatar_url);
+      if (modeEl) modeEl.textContent = hasImg ? 'Custom Photo' : 'Badge Mode';
       if (cropBtn) cropBtn.disabled = !hasImg;
       if (cropFab) cropFab.hidden = !hasImg;
     }
@@ -1724,6 +1802,12 @@
 
     if (nameInput) {
       nameInput.addEventListener('input', syncModalPreview);
+    }
+    if (phoneInput) {
+      phoneInput.addEventListener('input', syncModalPreview);
+    }
+    if (addrInput) {
+      addrInput.addEventListener('input', syncModalPreview);
     }
 
     if (uploadBtn && fileInput) {
@@ -1900,6 +1984,16 @@
       });
     });
 
+    if (newPwInput) {
+      newPwInput.addEventListener('input', updatePasswordMeter);
+    }
+
+    window.addEventListener('resize', function () {
+      if (!modal.classList.contains('is-open')) return;
+      var activeBtn = $('.pm-tab-btn.is-active', modal);
+      if (activeBtn) moveTabSlider(activeBtn, false);
+    });
+
     new MutationObserver(function () {
       if (!modal.classList.contains('is-open')) closeSubpanels();
     }).observe(modal, { attributes: true, attributeFilter: ['class'] });
@@ -1907,15 +2001,16 @@
     function openProfile() {
       setError('');
       closeSubpanels();
-      switchTab('identity');
       if (curPwInput) curPwInput.value = '';
       if (newPwInput) newPwInput.value = '';
+      updatePasswordMeter();
       closeSidebarPopover();
       if (notifPop && !notifPop.hidden) {
         notifPop.hidden = true;
         if (bellBtn) bellBtn.setAttribute('aria-expanded', 'false');
       }
       openModal(modal);
+      switchTab('identity', false);
       fetch('/api/profile', { credentials: 'same-origin', cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
