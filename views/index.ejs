@@ -33,14 +33,36 @@
     </div>
   </section>
 
-  <%- renderAnnouncements(2) %>
+  <% const landingAdvisories = renderAnnouncements(2); %>
+  <% if (landingAdvisories) { %>
+  <section class="landing-sec landing-advisories" aria-label="Community advisories">
+    <div class="landing-sec-head">
+      <h2 class="sec-title">Community advisories</h2>
+      <span class="muted">Latest barangay notices</span>
+    </div>
+    <%- landingAdvisories %>
+  </section>
+  <% } %>
 
-  <section class="steps">
-    <div class="card"><div class="step-no">1</div><h3>Report</h3><p class="muted">Pick a category, describe what happened, and pin the exact location on the map.</p></div>
-    <div class="card"><div class="step-no">2</div><h3>Assigned</h3><p class="muted">The barangay admin reviews it and assigns a volunteer to respond.</p></div>
-    <div class="card"><div class="step-no">3</div><h3>Resolved</h3><p class="muted">Follow every update until the incident is closed, with notifications along the way.</p></div>
+  <section class="landing-sec landing-process" aria-label="How it works">
+    <div class="landing-sec-head">
+      <h2 class="sec-title">How it works</h2>
+      <span class="muted">From report submission to verified resolution</span>
+    </div>
+    <div class="steps">
+      <div class="card"><div class="step-no">01</div><h3>Report</h3><p class="muted">Pick a category, describe what happened, and pin the exact location on the map.</p></div>
+      <div class="card"><div class="step-no">02</div><h3>Assigned</h3><p class="muted">The barangay admin reviews it and assigns a volunteer to respond.</p></div>
+      <div class="card"><div class="step-no">03</div><h3>Resolved</h3><p class="muted">Follow every update until the incident is closed, with notifications along the way.</p></div>
+    </div>
   </section>
 
-  <footer class="landing-foot muted">&copy; <%= new Date().getFullYear() %> <%= site %> &middot; <%= barangay %></footer>
+  <footer class="landing-foot muted">
+    <span>&copy; <%= new Date().getFullYear() %> <%= site %> &middot; <%= barangay %></span>
+    <nav class="landing-foot-links" aria-label="Footer links">
+      <a href="<%= BASE_URL %>/resident/report.php">Report an incident</a>
+      <a href="<%= BASE_URL %>/login.php">Log in</a>
+      <a href="<%= BASE_URL %>/register.php">Register</a>
+    </nav>
+  </footer>
 </div>
 <%- include('partials/footer') %>
