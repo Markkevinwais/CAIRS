@@ -569,9 +569,21 @@ header('X-Content-Type-Options: nosniff');
   function initMaps() {
     if (!window.L) return;
 
+    var worldBounds = [[-85.0511, -180], [85.0511, 180]];
+    var mapOpts = {
+      minZoom: 3,
+      maxBounds: worldBounds,
+      maxBoundsViscosity: 1.0,
+      worldCopyJump: false,
+      scrollWheelZoom: true
+    };
+
     function addTiles(map) {
       L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        maxZoom: 19, attribution: '&copy; OpenStreetMap contributors'
+        maxZoom: 19,
+        noWrap: true,
+        bounds: worldBounds,
+        attribution: '&copy; OpenStreetMap contributors'
       }).addTo(map);
     }
     function centerOf(el) { return [parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)]; }
@@ -579,7 +591,7 @@ header('X-Content-Type-Options: nosniff');
     // 10a. Report form: click the map (or use GPS) to drop a pin
     var picker = document.getElementById('map-picker');
     if (picker) {
-      var pickMap = L.map(picker).setView(centerOf(picker), picker.dataset.pin === '1' ? 17 : 14);
+      var pickMap = L.map(picker, mapOpts).setView(centerOf(picker), picker.dataset.pin === '1' ? 17 : 14);
       var pin = null;
       var latInput = document.getElementById('latitude');
       var lngInput = document.getElementById('longitude');
@@ -606,7 +618,7 @@ header('X-Content-Type-Options: nosniff');
     // 10b. Report details: show the saved pin
     var view = document.getElementById('map-view');
     if (view) {
-      var viewMap = L.map(view, { scrollWheelZoom: false }).setView(centerOf(view), 17);
+      var viewMap = L.map(view, mapOpts).setView(centerOf(view), 17);
       addTiles(viewMap);
       L.marker(centerOf(view)).addTo(viewMap);
     }
@@ -614,7 +626,7 @@ header('X-Content-Type-Options: nosniff');
     // 10c. Admin: every pinned report, colored by status
     var all = document.getElementById('map-all');
     if (all) {
-      var allMap = L.map(all).setView(centerOf(all), 13);
+      var allMap = L.map(all, mapOpts).setView(centerOf(all), 14);
       var points = JSON.parse(all.dataset.points);
       var markers = [];
       addTiles(allMap);
