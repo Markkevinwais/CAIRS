@@ -33,12 +33,12 @@ require __DIR__ . '/../includes/header.php';
 <?php if (!$rows): ?><p class="empty">No residents have registered yet.</p><?php else: ?>
 <table>
   <tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th class="num">Reports</th><th>Status</th><th class="act"></th></tr>
-  <?php foreach ($rows as $u): ?>
-  <tr><td><?= e($u['full_name']) ?></td><td><?= e($u['email']) ?></td><td><?= e($u['phone'] ?: '-') ?></td><td><?= e($u['address'] ?: '-') ?></td>
-      <td class="num"><?= (int) $u['total'] ?></td><td><span class="badge <?= $u['status'] === 'active' ? 's-resolved' : 's-rejected' ?>"><?= ucfirst($u['status']) ?></span></td>
+  <?php foreach ($rows as $resUser): ?>
+  <tr><td><?= e($resUser['full_name']) ?></td><td><?= e($resUser['email']) ?></td><td><?= e($resUser['phone'] ?: '-') ?></td><td><?= e($resUser['address'] ?: '-') ?></td>
+      <td class="num"><?= (int) $resUser['total'] ?></td><td><span class="badge <?= $resUser['status'] === 'active' ? 's-resolved' : 's-rejected' ?>"><?= e(ucfirst((string) $resUser['status'])) ?></span></td>
       <td class="act"><form method="post" data-confirm="Change this resident's status?"><?= csrfField() ?>
-        <input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
-        <button class="btn small <?= $u['status'] === 'active' ? 'danger' : '' ?>" type="submit"><?= $u['status'] === 'active' ? 'Deactivate' : 'Activate' ?></button></form></td></tr>
+        <input type="hidden" name="id" value="<?= (int) $resUser['id'] ?>">
+        <button class="btn small <?= $resUser['status'] === 'active' ? 'danger' : '' ?>" type="submit"><?= $resUser['status'] === 'active' ? 'Deactivate' : 'Activate' ?></button></form></td></tr>
   <?php endforeach; ?>
 </table>
 <?php endif; ?>

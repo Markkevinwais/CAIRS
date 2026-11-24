@@ -30,13 +30,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!$errors) {
         $chk = pdo()->prepare('SELECT id FROM users WHERE LOWER(email) = LOWER(?) LIMIT 1');
         $chk->execute([$old['email']]);
-        if ($chk->fetch()) $errors[] = 'That email is already registered.';
+        if ($chk->fetch()) {
+            $errors[] = 'That email is already registered.';
+        }
     }
+
     if (!$errors) {
-        $ins = pdo()->prepare(
-            "INSERT INTO users (full_name, email, password, role, phone, status) VALUES (?, ?, ?, 'volunteer', ?, 'active')"
-        );
-        $ins->execute([$old['full_name'], $old['email'], password_hash($pass, PASSWORD_BCRYPT), $old['phone'] ?: null]);
+        $ins = pdo()->prepare("INSERT INTO users (full_name, email, password, role, phone, status) VALUES (?, ?, ?, 'volunteer', ?, 'active')");
+        $ins->execute([
+            $old['full_name'],
+            $old['email'],
+            password_hash($pass, PASSWORD_BCRYPT),
+            $old['phone'] !== '' ? $old['phone'] : null,
+        ]);
         setFlash('Volunteer account created.');
         redirectTo('admin/volunteers.php');
     }
@@ -44,7 +50,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $rows = pdo()->query(
     "SELECT u.*,
-            (SELECT COUNT(*) FROM reports r WHERE r.volunteer_id = u.id AND r.status IN ('assigned','in_progress')) AS active_jobs,
+            (SELECT COUNT(*) FROM reports r WHERE r.volunteer_id = u.id AND r.status IN ('assigned', 'in_progress')) AS active_jobs,
             (SELECT COUNT(*) FROM reports r WHERE r.volunteer_id = u.id AND r.status = 'resolved') AS done
      FROM users u
      WHERE u.role = 'volunteer'
@@ -65,12 +71,12 @@ require __DIR__ . '/../includes/header.php';
   <?php if (!$rows): ?><p class="empty">No volunteers yet. Add the first one.</p><?php else: ?>
   <table>
     <tr><th>Name</th><th>Contact</th><th class="num">Active</th><th class="num">Resolved</th><th>Status</th><th class="act"></th></tr>
-    <?php foreach ($rows as $u): ?>
-    <tr><td><?= e($u['full_name']) ?></td><td><?= e($u['email']) ?><br><span class="muted"><?= e($u['phone'] ?: '') ?></span></td>
-        <td class="num"><?= (int) $u['active_jobs'] ?></td><td class="num"><?= (int) $u['done'] ?></td><td><span class="badge <?= $u['status'] === 'active' ? 's-resolved' : 's-rejected' ?>"><?= ucfirst($u['status']) ?></span></td>
+    <?php foreach ($rows as $volUser): ?>
+    <tr><td><?= e($volUser['full_name']) ?></td><td><?= e($volUser['email']) ?><br><span class="muted"><?= e($volUser['phone'] ?? '') ?></span></td>
+        <td class="num"><?= (int) $volUser['active_jobs'] ?></td><td class="num"><?= (int) $volUser['done'] ?></td><td><span class="badge <?= $volUser['status'] === 'active' ? 's-resolved' : 's-rejected' ?>"><?= e(ucfirst((string) $volUser['status'])) ?></span></td>
         <td class="act"><form method="post" data-confirm="Change this volunteer's status?"><?= csrfField() ?>
-          <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $u['id'] ?>">
-          <button class="btn small <?= $u['status'] === 'active' ? 'danger' : '' ?>" type="submit"><?= $u['status'] === 'active' ? 'Deactivate' : 'Activate' ?></button></form></td></tr>
+          <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $volUser['id'] ?>">
+          <button class="btn small <?= $volUser['status'] === 'active' ? 'danger' : '' ?>" type="submit"><?= $volUser['status'] === 'active' ? 'Deactivate' : 'Activate' ?></button></form></td></tr>
     <?php endforeach; ?>
   </table>
   <?php endif; ?>

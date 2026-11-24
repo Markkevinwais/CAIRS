@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/helpers.php';
 $user = requireRole('admin');
+$uid = (int) $user['id'];
 
 $id = (int) ($_GET['id'] ?? 0);
 $r = fetchReport($id);
@@ -11,7 +12,7 @@ if (!$r) {
     redirectTo('admin/reports.php');
 }
 
-$vols = pdo()->query("SELECT id, full_name FROM users WHERE role = 'volunteer' AND status = 'active' ORDER BY full_name ASC")->fetchAll();
+$vols = pdo()->query("SELECT * FROM users WHERE role = 'volunteer' AND status = 'active' ORDER BY full_name ASC")->fetchAll();
 $statuses = ['pending', 'assigned', 'in_progress', 'resolved', 'rejected'];
 $errors = [];
 
@@ -19,24 +20,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     csrfCheckOrDie();
     $status = (string) ($_POST['status'] ?? '');
     $priority = (string) ($_POST['priority'] ?? '');
-    $vol = (int) ($_POST['volunteer_id'] ?? 0) ?: null;
+    $volIdRaw = (int) ($_POST['volunteer_id'] ?? 0);
+    $vol = $volIdRaw > 0 ? $volIdRaw : null;
     $remark = trim((string) ($_POST['remark'] ?? ''));
 
-    if (!in_array($status, $statuses, true)) $errors[] = 'Choose a valid status.';
-    if (!in_array($priority, ['low', 'medium', 'high'], true)) $errors[] = 'Choose a valid priority.';
+    if (!in_array($status, $statuses, true)) {
+        $errors[] = 'Choose a valid status.';
+    }
+    if (!in_array($priority, ['low', 'medium', 'high'], true)) {
+        $errors[] = 'Choose a valid priority.';
+    }
 
     $volObj = null;
-    if ($vol) {
+    if ($vol !== null) {
         foreach ($vols as $v) {
             if ((int) $v['id'] === $vol) {
                 $volObj = $v;
                 break;
             }
         }
-        if (!$volObj) $errors[] = 'Choose an active volunteer.';
+        if (!$volObj) {
+            $errors[] = 'Choose an active volunteer.';
+        }
     }
-    if ($vol && $status === 'pending') $status = 'assigned';
-    if (in_array($status, ['assigned', 'in_progress'], true) && !$vol) {
+
+    if ($vol !== null && $status === 'pending') {
+        $status = 'assigned';
+    }
+    if (in_array($status, ['assigned', 'in_progress'], true) && $vol === null) {
         $errors[] = 'Assign a volunteer before marking it ' . statusLabel($status) . '.';
     }
     if ($status === 'rejected' && $remark === '') {
@@ -51,19 +62,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $upd->execute([$status, $priority, $vol, $id]);
 
         $note = $remark;
-        $newVol = (bool) ($vol && $vol !== $prevVol);
+        $newVol = $vol !== null && $vol !== $prevVol;
         if ($newVol && $volObj) {
             $note = trim('Assigned to ' . $volObj['full_name'] . '. ' . $remark);
         }
         if ($status !== $prevStatus || $note !== '') {
-            logUpdate($id, (int) $user['id'], $status, $note);
+            logUpdate($id, $uid, $status, $note);
         }
         if ($status !== $prevStatus || $newVol) {
             notify((int) $r['resident_id'], $id, refNo($id) . ' is now ' . statusLabel($status) . '.');
         }
-        if ($newVol) {
-            notify((int) $vol, $id, 'You were assigned to ' . refNo($id) . ': ' . $r['title']);
+        if ($newVol && $vol !== null) {
+            notify($vol, $id, 'You were assigned to ' . refNo($id) . ': ' . $r['title']);
         }
+
         setFlash('Report updated.');
         redirectTo('admin/report_details.php?id=' . $id);
     }
@@ -111,11 +123,11 @@ require __DIR__ . '/../includes/header.php';
       </select>
       <label for="priority">Priority</label>
       <select id="priority" name="priority">
-        <?php foreach (['low','medium','high'] as $p): ?><option value="<?= $p ?>" <?= $r['priority'] === $p ? 'selected' : '' ?>><?= ucfirst($p) ?></option><?php endforeach; ?>
+        <?php foreach (['low', 'medium', 'high'] as $p): ?><option value="<?= e($p) ?>" <?= $r['priority'] === $p ? 'selected' : '' ?>><?= e(ucfirst($p)) ?></option><?php endforeach; ?>
       </select>
       <label for="status">Status</label>
       <select id="status" name="status">
-        <?php foreach ($statuses as $s): ?><option value="<?= $s ?>" <?= $r['status'] === $s ? 'selected' : '' ?>><?= e(statusLabel($s)) ?></option><?php endforeach; ?>
+        <?php foreach ($statuses as $s): ?><option value="<?= e($s) ?>" <?= $r['status'] === $s ? 'selected' : '' ?>><?= e(statusLabel($s)) ?></option><?php endforeach; ?>
       </select>
       <label for="remark">Remark (the resident can see this)</label>
       <textarea id="remark" name="remark" style="min-height:80px"></textarea>

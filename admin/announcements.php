@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/helpers.php';
 $user = requireRole('admin');
+$uid = (int) $user['id'];
 
 $levels = ['info', 'warning', 'critical'];
 $errors = [];
@@ -32,6 +33,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         'body' => trim((string) ($_POST['body'] ?? '')),
         'level' => trim((string) ($_POST['level'] ?? '')),
     ];
+
     if ($old['title'] === '') $errors[] = 'Enter a title.';
     if (mb_strlen($old['title']) > 150) $errors[] = 'The title is too long (150 characters at most).';
     if ($old['body'] === '') $errors[] = 'Write the message.';
@@ -39,8 +41,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (!in_array($old['level'], $levels, true)) $errors[] = 'Choose a level.';
 
     if (!$errors) {
-        $stmt = pdo()->prepare('INSERT INTO announcements (user_id, title, body, level, is_active) VALUES (?, ?, ?, ?, 1)');
-        $stmt->execute([(int) $user['id'], $old['title'], $old['body'], $old['level']]);
+        $ins = pdo()->prepare('INSERT INTO announcements (user_id, title, body, level, is_active) VALUES (?, ?, ?, ?, 1)');
+        $ins->execute([$uid, $old['title'], $old['body'], $old['level']]);
         setFlash('Announcement posted.');
         redirectTo('admin/announcements.php');
     }
@@ -69,9 +71,9 @@ require __DIR__ . '/../includes/header.php';
     <article class="ann ann-<?= e($a['level']) ?><?= !empty($a['is_active']) ? '' : ' is-off' ?>">
       <span class="ann-ic"><?= icon($a['level'] === 'critical' ? 'siren' : 'megaphone', 20) ?></span>
       <div>
-        <strong><?= e($a['title']) ?></strong> <?= !empty($a['is_active']) ? '' : '<span class="badge">Hidden</span>' ?>
+        <strong><?= e($a['title']) ?></strong> <?php if (empty($a['is_active'])): ?><span class="badge">Hidden</span><?php endif; ?>
         <p><?= nl2br_safe($a['body']) ?></p>
-        <span class="muted"><?= e(fmtDate($a['created_at'])) ?> &middot; <?= e($a['full_name']) ?> &middot; <?= ucfirst($a['level']) ?></span>
+        <span class="muted"><?= e(fmtDate($a['created_at'])) ?> &middot; <?= e($a['full_name']) ?> &middot; <?= e(ucfirst((string) $a['level'])) ?></span>
         <div class="ann-actions">
           <form method="post"><?= csrfField() ?>
             <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $a['id'] ?>">
@@ -94,7 +96,7 @@ require __DIR__ . '/../includes/header.php';
       <input id="title" name="title" maxlength="150" required value="<?= e($old['title']) ?>">
       <label for="level">Level</label>
       <select id="level" name="level">
-        <?php foreach ($levels as $l): ?><option value="<?= $l ?>" <?= $old['level'] === $l ? 'selected' : '' ?>><?= ucfirst($l) ?></option><?php endforeach; ?>
+        <?php foreach ($levels as $l): ?><option value="<?= e($l) ?>" <?= $old['level'] === $l ? 'selected' : '' ?>><?= e(ucfirst($l)) ?></option><?php endforeach; ?>
       </select>
       <label for="body">Message</label>
       <textarea id="body" name="body" required style="min-height:110px"><?= e($old['body']) ?></textarea>

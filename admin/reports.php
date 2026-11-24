@@ -9,7 +9,8 @@ $cat = (int) ($_GET['category'] ?? 0);
 $q = trim((string) ($_GET['q'] ?? ''));
 $exporting = isset($_GET['export']);
 
-$sql = 'SELECT r.*, COALESCE(c.name, "Other") AS category, COALESCE(res.full_name, "Unknown") AS resident_name,
+$sql = 'SELECT r.*, COALESCE(c.name, "Other") AS category,
+               COALESCE(res.full_name, "Unknown") AS resident_name,
                vol.full_name AS volunteer_name
         FROM reports r
         LEFT JOIN categories c ON c.id = r.category_id
@@ -27,12 +28,13 @@ if ($cat > 0) {
     $params[] = $cat;
 }
 if ($q !== '') {
-    $sql .= ' AND (r.title LIKE ? OR r.location LIKE ? OR res.full_name LIKE ?)';
     $like = '%' . $q . '%';
+    $sql .= ' AND (r.title LIKE ? OR r.location LIKE ? OR res.full_name LIKE ?)';
     $params[] = $like;
     $params[] = $like;
     $params[] = $like;
 }
+
 $sql .= ' ORDER BY r.id DESC';
 if (!$exporting) {
     $sql .= ' LIMIT 200';
@@ -45,10 +47,23 @@ $rows = $stmt->fetchAll();
 if ($exporting) {
     $today = date('Y-m-d');
     header('Content-Type: text/csv; charset=utf-8');
-    header("Content-Disposition: attachment; filename=\"cairs-reports-{$today}.csv\"");
+    header('Content-Disposition: attachment; filename="cairs-reports-' . $today . '.csv"');
     $out = fopen('php://output', 'w');
     fwrite($out, "\xEF\xBB\xBF");
-    fputcsv($out, ['Reference', 'Title', 'Category', 'Resident', 'Volunteer', 'Location', 'Latitude', 'Longitude', 'Priority', 'Status', 'Filed', 'Last updated']);
+    fputcsv($out, [
+        'Reference',
+        'Title',
+        'Category',
+        'Resident',
+        'Volunteer',
+        'Location',
+        'Latitude',
+        'Longitude',
+        'Priority',
+        'Status',
+        'Filed',
+        'Last updated',
+    ]);
     foreach ($rows as $r) {
         fputcsv($out, array_map('csvSafe', [
             refNo($r['id']),
@@ -59,7 +74,7 @@ if ($exporting) {
             $r['location'],
             $r['latitude'] ?? '',
             $r['longitude'] ?? '',
-            ucfirst($r['priority']),
+            ucfirst((string) $r['priority']),
             statusLabel($r['status']),
             $r['created_at'],
             $r['updated_at'],
@@ -95,8 +110,8 @@ require __DIR__ . '/../includes/header.php';
   <div class="filter-field">
     <select name="status" aria-label="Status">
       <option value="">All statuses</option>
-      <?php foreach (['pending','assigned','in_progress','resolved','rejected'] as $s): ?>
-        <option value="<?= $s ?>" <?= $status === $s ? 'selected' : '' ?>><?= e(statusLabel($s)) ?></option>
+      <?php foreach (['pending', 'assigned', 'in_progress', 'resolved', 'rejected'] as $s): ?>
+        <option value="<?= e($s) ?>" <?= $status === $s ? 'selected' : '' ?>><?= e(statusLabel($s)) ?></option>
       <?php endforeach; ?>
     </select>
   </div>
@@ -107,14 +122,14 @@ require __DIR__ . '/../includes/header.php';
     </select>
   </div>
   <button class="btn" type="submit">Filter</button>
-  <?php if ($q || $status || $cat): ?><a class="btn ghost" href="reports.php">Reset</a><?php endif; ?>
+  <?php if ($q !== '' || $status !== '' || $cat > 0): ?><a class="btn ghost" href="reports.php">Reset</a><?php endif; ?>
 </form>
 <div class="card tablewrap">
 <?php if (!$rows): ?><p class="empty">No reports match these filters.</p><?php else: ?>
 <table>
   <tr><th>Ref</th><th>Title</th><th>Category</th><th>Resident</th><th>Volunteer</th><th>Priority</th><th>Status</th><th class="noprint act"></th></tr>
   <?php foreach ($rows as $r): ?>
-  <tr><td><?= refNo($r['id']) ?></td><td><?= e($r['title']) ?><?= !empty($r['is_sos']) ? ' <span class="badge sos">SOS</span>' : '' ?></td><td><?= e($r['category']) ?></td>
+  <tr><td><?= refNo($r['id']) ?></td><td><?= e($r['title']) ?><?php if (!empty($r['is_sos'])): ?> <span class="badge sos">SOS</span><?php endif; ?></td><td><?= e($r['category']) ?></td>
       <td><?= e($r['resident_name']) ?></td><td><?= e($r['volunteer_name'] ?: '-') ?></td>
       <td><?= prio($r['priority']) ?></td><td><?= badge($r['status']) ?></td>
       <td class="noprint act"><a href="report_details.php?id=<?= (int) $r['id'] ?>">Open</a></td></tr>

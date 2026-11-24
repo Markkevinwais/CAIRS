@@ -4,7 +4,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../includes/helpers.php';
 $user = requireRole('admin');
 
-$allReports = pdo()->query('SELECT * FROM reports')->fetchAll();
+$allReports = pdo()->query('SELECT status, created_at, updated_at FROM reports')->fetchAll();
 $total = count($allReports);
 $resolvedRows = array_values(array_filter($allReports, fn($r) => $r['status'] === 'resolved'));
 $resolved = count($resolvedRows);
@@ -13,12 +13,18 @@ $avgHours = null;
 if ($resolved > 0) {
     $sumHours = 0.0;
     foreach ($resolvedRows as $r) {
-        $sumHours += (strtotime($r['updated_at']) - strtotime($r['created_at'])) / 3600.0;
+        $sumHours += (strtotime((string) $r['updated_at']) - strtotime((string) $r['created_at'])) / 3600.0;
     }
     $avgHours = $sumHours / $resolved;
 }
 
-$byStatus = ['pending' => 0, 'assigned' => 0, 'in_progress' => 0, 'resolved' => 0, 'rejected' => 0];
+$byStatus = [
+    'pending' => 0,
+    'assigned' => 0,
+    'in_progress' => 0,
+    'resolved' => 0,
+    'rejected' => 0,
+];
 foreach ($allReports as $r) {
     $byStatus[$r['status']] = ($byStatus[$r['status']] ?? 0) + 1;
 }
@@ -36,22 +42,18 @@ foreach ($catRows as $cr) {
 }
 
 $tz = new DateTimeZone('Asia/Manila');
-$nowManila = new DateTime('now', $tz);
-$curYear = (int) $nowManila->format('Y');
-$curMonth = (int) $nowManila->format('n');
-
+$baseMonth = new DateTimeImmutable('first day of this month 12:00:00', $tz);
 $monthBuckets = [];
 for ($offset = 5; $offset >= 0; $offset--) {
-    $d = new DateTime(sprintf('%04d-%02d-15', $curYear, $curMonth), $tz);
-    $d->modify("-{$offset} months");
-    $ym = $d->format('Y-m');
-    $shortMon = $d->format('M');
-    $yr = $d->format('Y');
+    $dt = $baseMonth->modify("-{$offset} months");
+    $ym = $dt->format('Y-m');
+    $shortMon = $dt->format('M');
+    $yr = $dt->format('Y');
     $monthBuckets[$ym] = [
         'label' => $shortMon,
         'subLabel' => $yr,
-        'ym' => str_replace('-', '/', $ym),
-        'fullLabel' => "{$shortMon} {$yr}",
+        'ym' => $dt->format('Y/m'),
+        'fullLabel' => $shortMon . ' ' . $yr,
         'value' => 0,
         'resolved' => 0,
     ];
@@ -59,12 +61,13 @@ for ($offset = 5; $offset >= 0; $offset--) {
 
 foreach ($allReports as $r) {
     try {
-        $dt = new DateTime($r['created_at']);
-        $dt->setTimezone($tz);
+        $dt = (new DateTimeImmutable((string) $r['created_at']))->setTimezone($tz);
         $ym = $dt->format('Y-m');
         if (isset($monthBuckets[$ym])) {
             $monthBuckets[$ym]['value']++;
-            if ($r['status'] === 'resolved') $monthBuckets[$ym]['resolved']++;
+            if ($r['status'] === 'resolved') {
+                $monthBuckets[$ym]['resolved']++;
+            }
         }
     } catch (Throwable $e) {
     }
@@ -86,7 +89,7 @@ require __DIR__ . '/../includes/header.php';
 </div>
 <div class="grid grid-3">
   <?= statCard('file', 'Total reports', $total, 'All time', 'primary') ?>
-  <?= statCard('check', 'Resolution rate', ($total ? round($resolved / $total * 100) : 0) . '%', 'Reports resolved', 'success') ?>
+  <?= statCard('check', 'Resolution rate', ($total ? (int) round(($resolved / $total) * 100) : 0) . '%', 'Reports resolved', 'success') ?>
   <?= statCard('clock', 'Avg. hours to resolve', $avgHours !== null ? number_format($avgHours, 1) : '-', 'From filing to resolved', 'warning') ?>
 </div>
 <div class="two even">

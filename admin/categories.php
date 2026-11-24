@@ -21,18 +21,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($action === 'add') {
         $err = categoryNameError($name);
-        if ($err) setFlash($err, 'error');
-        else {
-            $stmt = pdo()->prepare('INSERT INTO categories (name) VALUES (?)');
-            $stmt->execute([$name]);
+        if ($err !== '') {
+            setFlash($err, 'error');
+        } else {
+            $ins = pdo()->prepare('INSERT INTO categories (name) VALUES (?)');
+            $ins->execute([$name]);
             setFlash('Category added.');
         }
     } elseif ($action === 'rename') {
         $err = categoryNameError($name, $id);
-        if ($err) setFlash($err, 'error');
-        else {
-            $stmt = pdo()->prepare('UPDATE categories SET name = ? WHERE id = ?');
-            $stmt->execute([$name, $id]);
+        if ($err !== '') {
+            setFlash($err, 'error');
+        } else {
+            $upd = pdo()->prepare('UPDATE categories SET name = ? WHERE id = ?');
+            $upd->execute([$name, $id]);
             setFlash('Category renamed.');
         }
     } elseif ($action === 'delete') {
@@ -41,8 +43,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ((int) $chk->fetchColumn() > 0) {
             setFlash('This category is used by reports, so it cannot be deleted.', 'error');
         } else {
-            $stmt = pdo()->prepare('DELETE FROM categories WHERE id = ?');
-            $stmt->execute([$id]);
+            $del = pdo()->prepare('DELETE FROM categories WHERE id = ?');
+            $del->execute([$id]);
             setFlash('Category deleted.');
         }
     }

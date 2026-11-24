@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../includes/helpers.php';
 $user = requireRole('admin');
+$uid = (int) $user['id'];
+
 $errors = [];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
@@ -12,7 +14,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'site') {
         foreach (['site_name', 'barangay_name', 'contact_phone', 'map_lat', 'map_lng'] as $k) {
             $v = trim((string) ($_POST[$k] ?? ''));
-            if (in_array($k, ['map_lat', 'map_lng'], true) && ($v === '' || !is_numeric($v))) continue;
+            if (in_array($k, ['map_lat', 'map_lng'], true) && ($v === '' || !is_numeric($v))) {
+                continue;
+            }
             setSetting($k, $v);
         }
         setFlash('Settings saved.');
@@ -23,14 +27,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         setSetting('sms_enabled', !empty($_POST['sms_enabled']) ? '1' : '0');
         setSetting('sms_sender', trim((string) ($_POST['sms_sender'] ?? '')));
         $apiKey = trim((string) ($_POST['sms_api_key'] ?? ''));
-        if ($apiKey !== '') setSetting('sms_api_key', $apiKey);
+        if ($apiKey !== '') {
+            setSetting('sms_api_key', $apiKey);
+        }
         setFlash('SMS settings saved.');
         redirectTo('admin/settings.php');
     }
 
     if ($action === 'sms_test') {
         [$ok, $msg] = sendSms((string) ($user['phone'] ?? ''), 'Test message from ' . setting('site_name', 'CAIRS') . '.');
-        setFlash($ok ? 'Test SMS sent to your admin phone number.' : "Test failed: {$msg}", $ok ? 'success' : 'error');
+        setFlash($ok ? 'Test SMS sent to your admin phone number.' : 'Test failed: ' . $msg, $ok ? 'success' : 'error');
         redirectTo('admin/settings.php');
     }
 
@@ -45,13 +51,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($action === 'password') {
         $currentPw = (string) ($_POST['current'] ?? '');
         $newPw = (string) ($_POST['new'] ?? '');
-        if (!password_verify($currentPw, $user['password'])) {
+        if (!password_verify($currentPw, (string) $user['password'])) {
             $errors[] = 'Current password is incorrect.';
         } elseif (strlen($newPw) < 6) {
             $errors[] = 'New password must be at least 6 characters.';
         } else {
-            $stmt = pdo()->prepare('UPDATE users SET password = ? WHERE id = ?');
-            $stmt->execute([password_hash($newPw, PASSWORD_BCRYPT), (int) $user['id']]);
+            $upd = pdo()->prepare('UPDATE users SET password = ? WHERE id = ?');
+            $upd->execute([password_hash($newPw, PASSWORD_BCRYPT), $uid]);
             setFlash('Password changed.');
             redirectTo('admin/settings.php');
         }
