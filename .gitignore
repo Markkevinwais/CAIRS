@@ -1,8 +1,3 @@
-node_modules/
-.data/
 .env
-public/assets/uploads/*
-!public/assets/uploads/.gitkeep
-public/assets/aistudio/
 assets/uploads/*
 !assets/uploads/.gitkeep
