@@ -135,12 +135,21 @@ $adminAccounts = pdo()->query("SELECT id, full_name, email, phone, address, stat
 $title = 'Settings';
 require __DIR__ . '/../includes/header.php';
 ?>
-<div class="page-head">
-  <div class="page-head-copy">
+<header class="settings-hero">
+  <div class="settings-hero-copy">
+    <div class="settings-kicker"><?= icon('sliders', 15) ?><span>System &amp; Barangay Configuration</span></div>
     <h1>Settings</h1>
-    <p class="page-head-sub">Configure barangay identity, dispatch map coordinates, emergency hotlines, SMS alerts, and admin security.</p>
+    <p class="settings-hero-sub">Configure barangay identity, dispatch map coordinates, emergency hotlines, SMS alerts, and admin security.</p>
   </div>
-</div>
+  <nav class="settings-nav" aria-label="Settings sections">
+    <button type="button" class="settings-nav-btn is-active" data-settings-tab="all" aria-current="true"><?= icon('grid', 15) ?><span>All sections</span></button>
+    <button type="button" class="settings-nav-btn" data-settings-tab="site" aria-current="false"><?= icon('globe', 15) ?><span>System Identity</span></button>
+    <button type="button" class="settings-nav-btn" data-settings-tab="map" aria-current="false"><?= icon('pin', 15) ?><span>Map Coordinates</span></button>
+    <button type="button" class="settings-nav-btn" data-settings-tab="hotlines" aria-current="false"><?= icon('phone', 15) ?><span>Emergency Hotlines</span></button>
+    <button type="button" class="settings-nav-btn" data-settings-tab="sms" aria-current="false"><?= icon('message', 15) ?><span>SMS Alerts</span></button>
+    <button type="button" class="settings-nav-btn" data-settings-tab="security" aria-current="false"><?= icon('lock', 15) ?><span>Admin Security</span></button>
+  </nav>
+</header>
 
 <?php foreach ($errors as $er): ?><div class="flash error"><?= e($er) ?></div><?php endforeach; ?>
 
@@ -153,22 +162,7 @@ require __DIR__ . '/../includes/header.php';
 
 <?= mapAssets() ?>
 
-<div class="settings-shell">
-  <aside class="settings-nav" aria-label="Settings sections">
-    <span class="settings-nav-title">Configuration</span>
-    <button type="button" class="settings-nav-btn is-active" data-settings-tab="all"><?= icon('grid', 16) ?><span>All sections</span></button>
-    <button type="button" class="settings-nav-btn" data-settings-tab="site"><?= icon('globe', 16) ?><span>System Identity</span></button>
-    <button type="button" class="settings-nav-btn" data-settings-tab="map"><?= icon('pin', 16) ?><span>Map Coordinates</span></button>
-    <button type="button" class="settings-nav-btn" data-settings-tab="hotlines"><?= icon('phone', 16) ?><span>Emergency Hotlines</span></button>
-    <button type="button" class="settings-nav-btn" data-settings-tab="sms"><?= icon('message', 16) ?><span>SMS Alerts</span></button>
-    <button type="button" class="settings-nav-btn" data-settings-tab="security"><?= icon('lock', 16) ?><span>Admin Security</span></button>
-    <div class="settings-nav-meta">
-      <strong>Signed in as <?= e($user['full_name']) ?></strong>
-      <span><?= e($user['email']) ?></span>
-    </div>
-  </aside>
-
-  <div class="settings-panels">
+<div class="settings-panels">
     <section class="card setting-card" data-settings-panel="site">
       <div class="setting-head">
         <div class="setting-head-title">
@@ -312,7 +306,7 @@ require __DIR__ . '/../includes/header.php';
               <label for="sms_api_key">Semaphore API key</label>
               <div class="pm-input-ic pm-pw-ic">
                 <?= icon('key', 16) ?>
-                <input id="sms_api_key" name="sms_api_key" type="password" autocomplete="off" placeholder="<?= $hasSmsKey ? 'Saved. Leave blank to keep existing key.' : 'Paste your Semaphore API key' ?>">
+                <input id="sms_api_key" name="sms_api_key" type="password" autocomplete="off" placeholder="<?= $hasSmsKey ? 'Saved (leave blank to keep)' : 'Paste Semaphore API key' ?>">
                 <button type="button" class="pm-eye-btn" data-pm-eye="sms_api_key" aria-label="Show API key"><?= icon('eye', 16) ?></button>
               </div>
             </div>
@@ -436,7 +430,6 @@ require __DIR__ . '/../includes/header.php';
       </div>
     </section>
   </div>
-</div>
 
 <div class="modal" id="adm-role-modal">
   <div class="modal-backdrop" data-modal-close></div>

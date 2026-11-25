@@ -65,53 +65,39 @@ require __DIR__ . '/includes/header.php';
   <section class="auth-panel">
     <header class="auth-header">
       <a class="auth-back" href="<?= BASE_URL ?>/index.php"><?= icon('arrow-left', 16) ?><span>Back to home</span></a>
-      <div class="auth-header-actions">
-        <span class="muted">New to <?= e(setting('site_name', 'CAIRS')) ?>?</span>
-        <a class="auth-header-link" href="<?= BASE_URL ?>/register.php">Create account</a>
-      </div>
     </header>
     <div class="auth-panel-body">
       <div class="auth-card">
-        <h1>Welcome back</h1>
-        <p class="muted">Log in to your account to continue.</p>
-        <?php if ($error): ?><div class="flash error"><?= e($error) ?></div><?php endif; ?>
-        <form method="post" id="login-form">
+        <div class="auth-card-head">
+          <p class="auth-kicker"><?= e(setting('barangay_name', 'Barangay Portal')) ?></p>
+          <h1>Welcome back</h1>
+          <p class="muted">Log in to report incidents and track response updates.</p>
+        </div>
+        <?php if ($error): ?><div class="flash error" role="alert"><?= icon('alert', 17) ?><span><?= e($error) ?></span></div><?php endif; ?>
+        <form method="post" id="login-form" class="auth-form">
           <?= csrfField() ?>
-          <label for="email">Email</label>
-          <input type="email" id="email" name="email" required autofocus autocomplete="email" value="<?= e($email) ?>">
-          <label for="password">Password</label>
-          <div class="pw-wrap">
-            <input type="password" id="password" name="password" required autocomplete="current-password">
-            <button type="button" class="pw-toggle" id="pw-toggle" aria-label="Show password"><?= icon('eye', 19) ?></button>
+          <div class="auth-field">
+            <div class="auth-label-row"><label for="email">Email</label></div>
+            <div class="pm-input-ic">
+              <?= icon('mail', 16) ?>
+              <input type="email" id="email" name="email" placeholder="name@example.com" required autofocus autocomplete="email" value="<?= e($email) ?>">
+            </div>
           </div>
-          <small class="caps-warn" id="caps-warn" hidden>Caps Lock is on.</small>
-          <p style="margin-top:18px"><button class="btn" type="submit" id="login-btn">Log in</button></p>
+          <div class="auth-field">
+            <div class="auth-label-row"><label for="password">Password</label></div>
+            <div class="pm-input-ic pm-pw-ic">
+              <?= icon('lock', 16) ?>
+              <input type="password" id="password" name="password" placeholder="Enter your password" required autocomplete="current-password">
+              <button type="button" class="pm-eye-btn" data-pw-eye="password" aria-label="Show password" aria-pressed="false"><?= icon('eye', 17) ?></button>
+            </div>
+          </div>
+          <small class="caps-warn" id="caps-warn" hidden><?= icon('alert', 14) ?><span>Caps Lock is on.</span></small>
+          <button class="btn auth-submit" type="submit" id="login-btn">Log in</button>
         </form>
-        <p class="muted">No account yet? <a href="<?= BASE_URL ?>/register.php">Register as a resident</a>.</p>
-        <p class="secure-note"><?= icon('shield', 15) ?> Secure, encrypted-password login</p>
+        <p class="auth-switch">New to <?= e(setting('site_name', 'CAIRS')) ?>? <a href="<?= BASE_URL ?>/register.php">Create an account</a></p>
+        <p class="secure-note"><?= icon('shield', 15) ?><span>Secure, encrypted-password login</span></p>
       </div>
     </div>
   </section>
 </div>
-<script>
-(function () {
-  var pw = document.getElementById('password'), tg = document.getElementById('pw-toggle');
-  var caps = document.getElementById('caps-warn'), form = document.getElementById('login-form'), btn = document.getElementById('login-btn');
-  tg.addEventListener('click', function () {
-    var show = pw.type === 'password';
-    pw.type = show ? 'text' : 'password';
-    tg.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
-    tg.style.opacity = show ? '1' : '.8';
-  });
-  function updateCaps(e) {
-    caps.hidden = !(e.getModifierState && e.getModifierState('CapsLock'));
-  }
-  pw.addEventListener('keydown', updateCaps);
-  pw.addEventListener('keyup', updateCaps);
-  pw.addEventListener('blur', function () { caps.hidden = true; });
-  form.addEventListener('submit', function () {
-    btn.classList.add('is-loading'); btn.textContent = 'Logging in...';
-  });
-})();
-</script>
 <?php require __DIR__ . '/includes/footer.php'; ?>

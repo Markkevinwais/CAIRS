@@ -169,9 +169,9 @@ header('X-Content-Type-Options: nosniff');
     }
 
     resolveInitialActive();
+    positionPill(false);
     requestAnimationFrame(function () {
       positionPill(false);
-      reveal();
     });
 
     if (window.ResizeObserver) {
@@ -213,8 +213,17 @@ header('X-Content-Type-Options: nosniff');
       if (open && sidebarNavApi) sidebarNavApi.reveal();
     }
 
-    function setDesktopClosed(closed) {
+    function setDesktopClosed(closed, animate) {
+      if (animate === false) {
+        document.body.style.transition = 'none';
+        sidebar.style.transition = 'none';
+      }
       document.body.classList.toggle('sidebar-closed', closed);
+      if (animate === false) {
+        sidebar.offsetWidth;
+        document.body.style.transition = '';
+        sidebar.style.transition = '';
+      }
       toggle.setAttribute('aria-expanded', closed ? 'false' : 'true');
       if (closeBtn) {
         var lbl = closed ? 'Expand side panel' : 'Collapse side panel';
@@ -227,14 +236,16 @@ header('X-Content-Type-Options: nosniff');
         else localStorage.removeItem(STORAGE_KEY);
       } catch (_) {}
       if (sidebarNavApi) {
-        sidebarNavApi.reveal();
-        setTimeout(function () { sidebarNavApi.positionPill(false); }, 270);
+        sidebarNavApi.positionPill(false);
+        if (animate !== false) {
+          setTimeout(function () { sidebarNavApi.positionPill(false); }, 270);
+        }
       }
     }
 
     try {
       if (!isMobile() && localStorage.getItem(STORAGE_KEY) === '1') {
-        setDesktopClosed(true);
+        setDesktopClosed(true, false);
       } else if (!isMobile()) {
         toggle.setAttribute('aria-expanded', 'true');
         if (closeBtn) closeBtn.setAttribute('aria-expanded', 'true');
@@ -243,13 +254,13 @@ header('X-Content-Type-Options: nosniff');
 
     toggle.addEventListener('click', function () {
       if (isMobile()) setMobileOpen(!sidebar.classList.contains('open'));
-      else setDesktopClosed(!document.body.classList.contains('sidebar-closed'));
+      else setDesktopClosed(!document.body.classList.contains('sidebar-closed'), true);
     });
 
     if (closeBtn) {
       closeBtn.addEventListener('click', function () {
         if (isMobile()) setMobileOpen(false);
-        else setDesktopClosed(!document.body.classList.contains('sidebar-closed'));
+        else setDesktopClosed(!document.body.classList.contains('sidebar-closed'), true);
       });
     }
 
@@ -3277,9 +3288,7 @@ header('X-Content-Type-Options: nosniff');
       eyeBtn.addEventListener('click', function () {
         var target = document.getElementById(eyeBtn.getAttribute('data-pm-eye'));
         if (!target) return;
-        var show = target.type === 'password';
-        target.type = show ? 'text' : 'password';
-        eyeBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        togglePasswordField(target, eyeBtn);
       });
     });
 
@@ -3423,9 +3432,7 @@ header('X-Content-Type-Options: nosniff');
       eyeBtn.addEventListener('click', function () {
         var target = document.getElementById(eyeBtn.getAttribute('data-pm-eye'));
         if (!target) return;
-        var show = target.type === 'password';
-        target.type = show ? 'text' : 'password';
-        eyeBtn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+        togglePasswordField(target, eyeBtn);
       });
     });
 
@@ -3749,62 +3756,13 @@ header('X-Content-Type-Options: nosniff');
       });
     });
 
-    // 14f. Settings workspace tabs, animated nav pill, live hotline preview, SMS counter, password strength
+    // 14f. Settings workspace tabs, live hotline preview, SMS counter, password strength
     var settingsNav = $('.settings-nav', mainEl);
     var settingsNavBtns = $all('.settings-nav-btn[data-settings-tab]', mainEl);
     var settingsPanels = $all('[data-settings-panel]', mainEl);
     if (settingsNav && settingsNavBtns.length && settingsPanels.length) {
-      var settingsPill = $('.settings-nav-pill', settingsNav);
-      if (!settingsPill) {
-        settingsPill = document.createElement('span');
-        settingsPill.className = 'settings-nav-pill';
-        settingsPill.setAttribute('aria-hidden', 'true');
-        settingsNav.insertBefore(settingsPill, settingsNav.firstChild);
-      }
-      settingsNav.classList.add('has-pill');
-      settingsNavBtns.forEach(function (b, idx) {
-        b.style.setProperty('--snav-idx', String(idx));
-      });
-
-      var lastSettingsBtn = null;
-      var pillMoveTimer = null;
       var activeInitBtn = $('.settings-nav-btn.is-active', settingsNav) || settingsNavBtns[0];
       var currentSettingsTab = activeInitBtn ? (activeInitBtn.getAttribute('data-settings-tab') || 'all') : 'all';
-
-      function positionSettingsPill(animate) {
-        var activeBtn = $('.settings-nav-btn.is-active', settingsNav) || settingsNavBtns[0];
-        if (!activeBtn || activeBtn.offsetHeight === 0 || activeBtn.offsetWidth === 0) {
-          settingsPill.classList.remove('is-ready');
-          return;
-        }
-        var x = activeBtn.offsetLeft;
-        var y = activeBtn.offsetTop;
-        var w = activeBtn.offsetWidth;
-        var h = activeBtn.offsetHeight;
-
-        if (!animate || reduceMotion || !settingsPill.classList.contains('is-ready')) {
-          var prevTr = settingsPill.style.transition;
-          settingsPill.style.transition = 'none';
-          settingsPill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-          settingsPill.style.width = w + 'px';
-          settingsPill.style.height = h + 'px';
-          settingsPill.offsetHeight;
-          settingsPill.style.transition = prevTr || '';
-          settingsPill.classList.add('is-ready');
-        } else {
-          if (lastSettingsBtn && lastSettingsBtn !== activeBtn) {
-            settingsPill.classList.remove('is-moving');
-            settingsPill.offsetWidth;
-            settingsPill.classList.add('is-moving');
-            clearTimeout(pillMoveTimer);
-            pillMoveTimer = setTimeout(function () { settingsPill.classList.remove('is-moving'); }, 340);
-          }
-          settingsPill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
-          settingsPill.style.width = w + 'px';
-          settingsPill.style.height = h + 'px';
-        }
-        lastSettingsBtn = activeBtn;
-      }
 
       function showSettingsTab(tab) {
         var nextTab = tab || 'all';
@@ -3816,7 +3774,6 @@ header('X-Content-Type-Options: nosniff');
           b.classList.toggle('is-active', isOn);
           b.setAttribute('aria-current', isOn ? 'true' : 'false');
         });
-        positionSettingsPill(true);
 
         var visibleIdx = 0;
         settingsPanels.forEach(function (p) {
@@ -3830,25 +3787,6 @@ header('X-Content-Type-Options: nosniff');
           }
         });
 
-        var settingsShell = $('.settings-shell', mainEl);
-        var scroller = $('.main-scroll');
-        if (settingsShell) {
-          if (scroller && window.innerWidth > 820) {
-            var shellTop = settingsShell.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
-            var anchorTop = Math.max(0, Math.round(shellTop - 20));
-            if (scroller.scrollTop > anchorTop + 4) {
-              scroller.scrollTo({ top: anchorTop, behavior: reduceMotion ? 'auto' : 'smooth' });
-            }
-          } else {
-            var winTop = settingsShell.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop || 0);
-            var winAnchor = Math.max(0, Math.round(winTop - 72));
-            var curWinY = window.pageYOffset || document.documentElement.scrollTop || 0;
-            if (curWinY > winAnchor + 4) {
-              window.scrollTo({ top: winAnchor, behavior: reduceMotion ? 'auto' : 'smooth' });
-            }
-          }
-        }
-
         var sMapEl = document.getElementById('settings-map-picker');
         if (sMapEl && sMapEl._leafletMap) {
           setTimeout(function () { sMapEl._leafletMap.invalidateSize(); }, 80);
@@ -3860,21 +3798,6 @@ header('X-Content-Type-Options: nosniff');
           showSettingsTab(btn.getAttribute('data-settings-tab') || 'all');
         });
       });
-
-      if (!reduceMotion) {
-        settingsNav.classList.add('is-revealing');
-        setTimeout(function () { settingsNav.classList.remove('is-revealing'); }, 450);
-      }
-      requestAnimationFrame(function () { positionSettingsPill(false); });
-      if (window.ResizeObserver) {
-        var sNavRo = new ResizeObserver(function () { positionSettingsPill(false); });
-        sNavRo.observe(settingsNav);
-      } else {
-        window.addEventListener('resize', function () { positionSettingsPill(false); });
-      }
-      if (document.fonts && document.fonts.ready) {
-        document.fonts.ready.then(function () { positionSettingsPill(false); });
-      }
     }
 
     var hotPreview = document.getElementById('hotline-live-preview');
@@ -4172,6 +4095,145 @@ header('X-Content-Type-Options: nosniff');
   }
 
 
+  function togglePasswordField(inputEl, btnEl) {
+    if (!inputEl || !btnEl) return;
+    var show = inputEl.type === 'password';
+    inputEl.type = show ? 'text' : 'password';
+    btnEl.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+    btnEl.setAttribute('aria-pressed', show ? 'true' : 'false');
+    var svg = $('svg', btnEl);
+    if (svg) {
+      svg.innerHTML = show
+        ? '<path d="M9.88 9.88a3 3 0 1 0 4.24 4.24"/><path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68"/><path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61"/><line x1="2" x2="22" y1="2" y2="22"/>'
+        : '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>';
+    }
+  }
+
+  function initAuthForms() {
+    var shell = $('.auth-shell');
+    if (!shell) return;
+
+    $all('[data-pw-eye]', shell).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = document.getElementById(btn.getAttribute('data-pw-eye'));
+        if (!target) return;
+        togglePasswordField(target, btn);
+        target.focus();
+      });
+    });
+
+    var caps = document.getElementById('caps-warn');
+    if (caps) {
+      var updateCaps = function (ev) {
+        caps.hidden = !(ev.getModifierState && ev.getModifierState('CapsLock'));
+      };
+      $all('input[type="password"]', shell).forEach(function (inp) {
+        inp.addEventListener('keydown', updateCaps);
+        inp.addEventListener('keyup', updateCaps);
+        inp.addEventListener('blur', function () { caps.hidden = true; });
+      });
+    }
+
+    var loginForm = document.getElementById('login-form');
+    var loginBtn = document.getElementById('login-btn');
+    if (loginForm && loginBtn) {
+      loginForm.addEventListener('submit', function () {
+        loginBtn.classList.add('is-loading');
+        loginBtn.textContent = 'Logging in...';
+      });
+    }
+
+    var regForm = document.getElementById('register-form');
+    if (regForm) {
+      var pw = document.getElementById('password');
+      var cf = document.getElementById('confirm');
+      var pwFill = document.getElementById('reg-pw-fill');
+      var pwHint = document.getElementById('reg-pw-hint');
+      var matchHint = document.getElementById('reg-match-hint');
+      var regBtn = document.getElementById('register-btn');
+
+      var syncStrength = function () {
+        if (!pw || !pwFill || !pwHint) return;
+        var val = pw.value || '';
+        if (!val) {
+          pwFill.style.width = '0%';
+          pwFill.style.background = 'var(--primary)';
+          pwHint.textContent = 'Minimum 6 characters; mix letters and numbers for strength';
+          return;
+        }
+        var score = 0;
+        if (val.length >= 6) score += 1;
+        if (val.length >= 10) score += 1;
+        if (/[A-Z]/.test(val) && /[a-z]/.test(val)) score += 1;
+        if (/[0-9]/.test(val)) score += 1;
+        if (/[^A-Za-z0-9]/.test(val)) score += 1;
+
+        if (val.length < 6) {
+          pwFill.style.width = '20%';
+          pwFill.style.background = '#dc2626';
+          pwHint.textContent = 'Too short \u2014 add at least ' + (6 - val.length) + ' more character(s)';
+        } else if (score <= 2) {
+          pwFill.style.width = '48%';
+          pwFill.style.background = '#d97706';
+          pwHint.textContent = 'Fair strength \u2014 try adding numbers or mixed case';
+        } else if (score <= 3) {
+          pwFill.style.width = '76%';
+          pwFill.style.background = '#047857';
+          pwHint.textContent = 'Good password strength';
+        } else {
+          pwFill.style.width = '100%';
+          pwFill.style.background = '#16a34a';
+          pwHint.textContent = 'Strong password';
+        }
+      };
+
+      var syncMatch = function () {
+        if (!pw || !cf || !matchHint) return;
+        var a = pw.value || '';
+        var b = cf.value || '';
+        if (!b) {
+          matchHint.hidden = true;
+          matchHint.classList.remove('is-ok', 'is-bad');
+          cf.setCustomValidity('');
+          return;
+        }
+        var ok = a === b;
+        matchHint.hidden = false;
+        matchHint.classList.toggle('is-ok', ok);
+        matchHint.classList.toggle('is-bad', !ok);
+        cf.setCustomValidity(ok ? '' : 'Passwords do not match.');
+        var msg = $('span', matchHint);
+        var ic = $('svg', matchHint);
+        if (msg) msg.textContent = ok ? 'Passwords match' : 'Passwords do not match';
+        if (ic) {
+          ic.innerHTML = ok
+            ? '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="m9 11 3 3L22 4"/>'
+            : '<circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/>';
+        }
+      };
+
+      if (pw) {
+        pw.addEventListener('input', function () {
+          syncStrength();
+          syncMatch();
+        });
+      }
+      if (cf) {
+        cf.addEventListener('input', syncMatch);
+      }
+      syncStrength();
+      syncMatch();
+
+      if (regBtn) {
+        regForm.addEventListener('submit', function () {
+          regBtn.classList.add('is-loading');
+          regBtn.textContent = 'Creating account...';
+        });
+      }
+    }
+  }
+
+
   /* START ---------------------------------------------------------------- */
   initSidebar();
   initDropdowns();
@@ -4185,4 +4247,5 @@ header('X-Content-Type-Options: nosniff');
   initSpaNavigation();
   initMobileOverlayScrollbar();
   initLandingNav();
+  initAuthForms();
 })();
