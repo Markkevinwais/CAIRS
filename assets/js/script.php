@@ -2285,7 +2285,8 @@ header('X-Content-Type-Options: nosniff');
         }
 
         var renderedH = Math.min(naturalH, avail);
-        var renderedW = menu.offsetWidth || minW;
+        var renderedW = Math.min(maxW, Math.max(minW, menu.offsetWidth || minW));
+        menu.style.width = renderedW + 'px';
         var left = Math.max(12, Math.min(r.left, vw - renderedW - 12));
         var top = openUp ? Math.max(12, r.top - renderedH - 6) : (r.bottom + 6);
 
