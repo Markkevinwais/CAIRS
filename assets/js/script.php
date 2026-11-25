@@ -2380,6 +2380,38 @@ header('X-Content-Type-Options: nosniff');
     });
   }
 
+  function initAutoGrowTextareas() {
+    $all('textarea').forEach(function (ta) {
+      if (ta.dataset.agInit === '1') {
+        ta.dispatchEvent(new Event('autosize'));
+        return;
+      }
+      ta.dataset.agInit = '1';
+
+      function syncHeight() {
+        if (!ta.offsetParent && ta.offsetHeight === 0) return;
+        var cs = window.getComputedStyle(ta);
+        var minH = parseFloat(cs.minHeight) || 110;
+        var maxH = parseFloat(cs.maxHeight);
+        if (!Number.isFinite(maxH) || maxH <= 0) maxH = Math.min(300, Math.round(window.innerHeight * 0.42));
+        var borders = (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+        ta.style.height = 'auto';
+        var nextH = Math.max(minH, Math.min(ta.scrollHeight + borders, maxH));
+        ta.style.height = nextH + 'px';
+        ta.style.overflowY = (ta.scrollHeight + borders > maxH + 1) ? 'auto' : 'hidden';
+      }
+
+      ta.addEventListener('input', syncHeight);
+      ta.addEventListener('autosize', syncHeight);
+      if (ta.form) {
+        ta.form.addEventListener('reset', function () {
+          requestAnimationFrame(syncHeight);
+        });
+      }
+      requestAnimationFrame(syncHeight);
+    });
+  }
+
   function initPage(isSwap) {
     closeActiveSelect(false);
     initConfirmForms();
@@ -2390,6 +2422,7 @@ header('X-Content-Type-Options: nosniff');
     initModernSelects();
     initAdminWorkspace();
     portalPageModals();
+    initAutoGrowTextareas();
     ensureLeaflet(initMaps);
     var autoModal = $('.modal[data-modal-autoopen]');
     if (autoModal) openModal(autoModal);
@@ -3583,7 +3616,10 @@ header('X-Content-Type-Options: nosniff');
         var bEl = document.getElementById('ann-edit-body');
         if (idEl) idEl.value = btn.getAttribute('data-id') || '';
         if (tEl) tEl.value = btn.getAttribute('data-title') || '';
-        if (bEl) bEl.value = btn.getAttribute('data-body') || '';
+        if (bEl) {
+          bEl.value = btn.getAttribute('data-body') || '';
+          requestAnimationFrame(function () { bEl.dispatchEvent(new Event('autosize')); });
+        }
         if (lEl) {
           lEl.value = btn.getAttribute('data-level') || 'info';
           lEl.dispatchEvent(new Event('change'));
