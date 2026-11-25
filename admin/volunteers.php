@@ -285,37 +285,42 @@ require __DIR__ . '/../includes/header.php';
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog modal-md" role="dialog" aria-modal="true" aria-labelledby="vol-add-title">
     <div class="modal-head">
-      <div>
-        <h3 id="vol-add-title">Onboard a Volunteer</h3>
-        <p>Create a responder account so they can log in, view assigned dispatches, and post field updates.</p>
+      <div class="modal-head-copy">
+        <span class="modal-head-ic"><?= icon('shield', 18) ?></span>
+        <div>
+          <h3 id="vol-add-title">Onboard a Volunteer</h3>
+          <p>Create a responder account so they can log in, view assigned dispatches, and post field updates.</p>
+        </div>
       </div>
       <button type="button" class="notif-head-ic" data-modal-close aria-label="Close"><?= icon('x', 16) ?></button>
     </div>
     <?php foreach ($errors as $er): ?><div class="flash error"><?= e($er) ?></div><?php endforeach; ?>
-    <form method="post">
+    <form class="modal-form" method="post">
       <?= csrfField() ?><input type="hidden" name="action" value="add">
-      <label for="full_name">Full name</label>
-      <input id="full_name" name="full_name" required placeholder="e.g. Marco Dela Cruz" value="<?= e($old['full_name']) ?>" data-autofocus>
-      <label for="email">Email address</label>
-      <input type="email" id="email" name="email" required placeholder="responder@cairs.local" value="<?= e($old['email']) ?>">
-      <div class="form-row">
-        <div>
-          <label for="phone">Mobile number</label>
-          <input id="phone" name="phone" placeholder="09XX-XXX-XXXX" value="<?= e($old['phone']) ?>">
+      <div class="modal-body">
+        <label for="full_name">Full name</label>
+        <input id="full_name" name="full_name" required placeholder="e.g. Marco Dela Cruz" value="<?= e($old['full_name']) ?>" data-autofocus>
+        <label for="email">Email address</label>
+        <input type="email" id="email" name="email" required placeholder="responder@cairs.local" value="<?= e($old['email']) ?>">
+        <div class="form-row">
+          <div>
+            <label for="phone">Mobile number</label>
+            <input id="phone" name="phone" placeholder="09XX-XXX-XXXX" value="<?= e($old['phone']) ?>">
+          </div>
+          <div>
+            <label for="address">Assigned area / station</label>
+            <input id="address" name="address" placeholder="e.g. Purok 2 Outpost" value="<?= e($old['address']) ?>">
+          </div>
         </div>
-        <div>
-          <label for="address">Assigned area / station</label>
-          <input id="address" name="address" placeholder="e.g. Purok 2 Outpost" value="<?= e($old['address']) ?>">
+        <label for="vol-add-password">Temporary password</label>
+        <div class="pw-gen-row">
+          <div class="pm-input-ic pm-pw-ic">
+            <?= icon('key', 16) ?>
+            <input type="password" id="vol-add-password" name="password" required minlength="6" placeholder="Min. 6 characters">
+            <button type="button" class="pm-eye-btn" data-pm-eye="vol-add-password" aria-label="Show password"><?= icon('eye', 16) ?></button>
+          </div>
+          <button type="button" class="btn ghost small pw-gen-btn" data-pw-gen="vol-add-password">Generate</button>
         </div>
-      </div>
-      <label for="vol-add-password">Temporary password</label>
-      <div class="pw-gen-row">
-        <div class="pm-input-ic pm-pw-ic">
-          <?= icon('key', 16) ?>
-          <input type="password" id="vol-add-password" name="password" required minlength="6" placeholder="Minimum 6 characters">
-          <button type="button" class="pm-eye-btn" data-pm-eye="vol-add-password" aria-label="Show password"><?= icon('eye', 16) ?></button>
-        </div>
-        <button type="button" class="btn ghost small pw-gen-btn" data-pw-gen="vol-add-password">Generate</button>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn ghost" data-modal-close>Cancel</button>
@@ -329,36 +334,41 @@ require __DIR__ . '/../includes/header.php';
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog modal-md" role="dialog" aria-modal="true" aria-labelledby="vol-edit-title">
     <div class="modal-head">
-      <div>
-        <h3 id="vol-edit-title">Edit Volunteer Profile</h3>
-        <p>Update responder contact details, assigned area, or reset their password.</p>
+      <div class="modal-head-copy">
+        <span class="modal-head-ic"><?= icon('edit', 18) ?></span>
+        <div>
+          <h3 id="vol-edit-title">Edit Volunteer Profile</h3>
+          <p>Update responder contact details, assigned area, or reset their password.</p>
+        </div>
       </div>
       <button type="button" class="notif-head-ic" data-modal-close aria-label="Close"><?= icon('x', 16) ?></button>
     </div>
-    <form method="post">
+    <form class="modal-form" method="post">
       <?= csrfField() ?><input type="hidden" name="action" value="edit"><input type="hidden" id="vol-edit-id" name="id" value="">
-      <label for="vol-edit-name">Full name</label>
-      <input id="vol-edit-name" name="full_name" required data-autofocus>
-      <div class="form-row">
-        <div>
-          <label for="vol-edit-email">Account email</label>
-          <input id="vol-edit-email" type="email" disabled>
+      <div class="modal-body">
+        <label for="vol-edit-name">Full name</label>
+        <input id="vol-edit-name" name="full_name" required data-autofocus>
+        <div class="form-row">
+          <div>
+            <label for="vol-edit-email">Account email</label>
+            <input id="vol-edit-email" type="email" disabled>
+          </div>
+          <div>
+            <label for="vol-edit-phone">Mobile number</label>
+            <input id="vol-edit-phone" name="phone" placeholder="09XX-XXX-XXXX">
+          </div>
         </div>
-        <div>
-          <label for="vol-edit-phone">Mobile number</label>
-          <input id="vol-edit-phone" name="phone" placeholder="09XX-XXX-XXXX">
+        <label for="vol-edit-address">Assigned area / station</label>
+        <input id="vol-edit-address" name="address" placeholder="e.g. Purok 2 Outpost">
+        <label for="vol-edit-password">Reset password (optional)</label>
+        <div class="pw-gen-row">
+          <div class="pm-input-ic pm-pw-ic">
+            <?= icon('key', 16) ?>
+            <input id="vol-edit-password" type="password" name="password" minlength="6" placeholder="Optional password">
+            <button type="button" class="pm-eye-btn" data-pm-eye="vol-edit-password" aria-label="Show password"><?= icon('eye', 16) ?></button>
+          </div>
+          <button type="button" class="btn ghost small pw-gen-btn" data-pw-gen="vol-edit-password">Generate</button>
         </div>
-      </div>
-      <label for="vol-edit-address">Assigned area / station</label>
-      <input id="vol-edit-address" name="address" placeholder="e.g. Purok 2 Outpost">
-      <label for="vol-edit-password">Reset password (optional)</label>
-      <div class="pw-gen-row">
-        <div class="pm-input-ic pm-pw-ic">
-          <?= icon('key', 16) ?>
-          <input id="vol-edit-password" type="password" name="password" minlength="6" placeholder="Leave blank to keep existing password">
-          <button type="button" class="pm-eye-btn" data-pm-eye="vol-edit-password" aria-label="Show password"><?= icon('eye', 16) ?></button>
-        </div>
-        <button type="button" class="btn ghost small pw-gen-btn" data-pw-gen="vol-edit-password">Generate</button>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn ghost" data-modal-close>Cancel</button>

@@ -246,22 +246,27 @@ require __DIR__ . '/../includes/header.php';
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog modal-md" role="dialog" aria-modal="true" aria-labelledby="ann-edit-modal-title">
     <div class="modal-head">
-      <div>
-        <h3 id="ann-edit-modal-title">Edit Announcement</h3>
-        <p>Update headline, severity level, or advisory content.</p>
+      <div class="modal-head-copy">
+        <span class="modal-head-ic"><?= icon('megaphone', 18) ?></span>
+        <div>
+          <h3 id="ann-edit-modal-title">Edit Announcement</h3>
+          <p>Update headline, severity level, or advisory content.</p>
+        </div>
       </div>
       <button type="button" class="notif-head-ic" data-modal-close aria-label="Close"><?= icon('x', 16) ?></button>
     </div>
-    <form method="post">
+    <form class="modal-form" method="post">
       <?= csrfField() ?><input type="hidden" name="action" value="edit"><input type="hidden" id="ann-edit-id" name="id" value="">
-      <label for="ann-edit-title">Headline</label>
-      <input id="ann-edit-title" name="title" maxlength="150" required data-autofocus>
-      <label for="ann-edit-level">Severity level</label>
-      <select id="ann-edit-level" name="level">
-        <?php foreach ($levels as $l): ?><option value="<?= e($l) ?>"><?= e(ucfirst($l)) ?></option><?php endforeach; ?>
-      </select>
-      <label for="ann-edit-body">Message</label>
-      <textarea id="ann-edit-body" name="body" maxlength="2000" required style="min-height:130px"></textarea>
+      <div class="modal-body">
+        <label for="ann-edit-title">Headline</label>
+        <input id="ann-edit-title" name="title" maxlength="150" required data-autofocus>
+        <label for="ann-edit-level">Severity level</label>
+        <select id="ann-edit-level" name="level">
+          <?php foreach ($levels as $l): ?><option value="<?= e($l) ?>"><?= e(ucfirst($l)) ?></option><?php endforeach; ?>
+        </select>
+        <label for="ann-edit-body">Message</label>
+        <textarea id="ann-edit-body" name="body" maxlength="2000" required style="min-height:130px"></textarea>
+      </div>
       <div class="modal-foot">
         <button type="button" class="btn ghost" data-modal-close>Cancel</button>
         <button type="submit" class="btn">Save Changes</button>

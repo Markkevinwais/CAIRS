@@ -326,25 +326,52 @@ header('X-Content-Type-Options: nosniff');
     });
   }
 
+  function canScrollInsideModal(target, modal, deltaY) {
+    var el = target && target.nodeType === 1 ? target : (target && target.parentElement ? target.parentElement : null);
+    while (el && el !== modal) {
+      if (el.scrollHeight > el.clientHeight + 1) {
+        var st = window.getComputedStyle ? getComputedStyle(el) : null;
+        var oy = st ? st.overflowY : '';
+        if (oy === 'auto' || oy === 'scroll') {
+          if (typeof deltaY !== 'number' || deltaY === 0) return true;
+          if (deltaY < 0 && el.scrollTop > 0) return true;
+          if (deltaY > 0 && el.scrollTop + el.clientHeight < el.scrollHeight - 1) return true;
+        }
+      }
+      el = el.parentElement;
+    }
+    return false;
+  }
+
   function openModal(modal) {
     if (modal.parentNode !== document.body) {
       modal.setAttribute('data-spa-modal', '1');
       document.body.appendChild(modal);
     }
     lastFocus = document.activeElement;
+    document.documentElement.classList.add('has-modal');
     document.body.classList.add('has-modal');
+    var mBody = $('.modal-body', modal);
+    if (mBody) mBody.scrollTop = 0;
     modal.classList.add('is-mounted');
     void modal.offsetWidth;                         // force a reflow so the CSS transition plays
     modal.classList.add('is-open');
     var focusable = $('[data-autofocus]', modal) || $('button, a[href], input:not([disabled]), select, textarea', modal);
-    if (focusable) focusable.focus();
+    if (focusable && focusable.focus) {
+      try { focusable.focus({ preventScroll: true }); } catch (_) { focusable.focus(); }
+    }
   }
 
   function closeModal(modal) {
     modal.classList.remove('is-open');
-    if (!$('.modal.is-open')) document.body.classList.remove('has-modal');
+    if (!$('.modal.is-open')) {
+      document.documentElement.classList.remove('has-modal');
+      document.body.classList.remove('has-modal');
+    }
     setTimeout(function () { modal.classList.remove('is-mounted'); }, reduceMotion ? 0 : 260);
-    if (lastFocus && lastFocus.focus) lastFocus.focus();
+    if (lastFocus && lastFocus.focus) {
+      try { lastFocus.focus({ preventScroll: true }); } catch (_) { lastFocus.focus(); }
+    }
   }
 
   function initModals() {
@@ -374,6 +401,23 @@ header('X-Content-Type-Options: nosniff');
         else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
       }
     });
+    // Prevent wheel and touch scrolling from leaking to the background page
+    document.addEventListener('wheel', function (e) {
+      if (!document.body.classList.contains('has-modal')) return;
+      var open = $('.modal.is-open');
+      if (!open) return;
+      if (!open.contains(e.target) || !canScrollInsideModal(e.target, open, e.deltaY)) {
+        e.preventDefault();
+      }
+    }, { passive: false });
+    document.addEventListener('touchmove', function (e) {
+      if (!document.body.classList.contains('has-modal')) return;
+      var open = $('.modal.is-open');
+      if (!open) return;
+      if (!open.contains(e.target) || !canScrollInsideModal(e.target, open, 0)) {
+        e.preventDefault();
+      }
+    }, { passive: false });
   }
 
   // <form data-confirm="Are you sure?"> asks first, using a styled dialog
@@ -2265,6 +2309,7 @@ header('X-Content-Type-Options: nosniff');
           // Remove floating menus & modals left open before swapping #main
           closeActiveSelect(false);
           $all('.modal.is-open').forEach(function (m) { m.classList.remove('is-open', 'is-mounted'); });
+          document.documentElement.classList.remove('has-modal');
           document.body.classList.remove('has-modal');
           $all('.modal[data-spa-modal]').forEach(function (m) { m.remove(); });
           var oldSos = document.getElementById('sos-modal');
@@ -3211,21 +3256,35 @@ header('X-Content-Type-Options: nosniff');
       });
     });
 
-    // 14e. Categories: live auto-priority prediction
-    var catInput = document.getElementById('cat-add-name');
-    var catBadge = document.getElementById('cat-prio-badge');
-    if (catInput && catBadge) {
-      var HIGH_CATS = ['fire', 'medical emergency', 'flood', 'road accident', 'theft / crime'];
-      var LOW_CATS = ['noise disturbance', 'garbage / sanitation', 'broken streetlight / road'];
-      function syncCatPrio() {
-        var v = catInput.value.trim().toLowerCase();
+    // 14e. Categories: live auto-priority prediction & edit modal
+    var HIGH_CATS = ['fire', 'medical emergency', 'flood', 'road accident', 'theft / crime'];
+    var LOW_CATS = ['noise disturbance', 'garbage / sanitation', 'broken streetlight / road'];
+    function bindCatPrioPreview(inputEl, badgeEl) {
+      if (!inputEl || !badgeEl) return null;
+      function sync() {
+        var v = inputEl.value.trim().toLowerCase();
         var pr = HIGH_CATS.indexOf(v) !== -1 ? 'high' : (LOW_CATS.indexOf(v) !== -1 ? 'low' : 'medium');
-        catBadge.className = 'badge p-' + pr;
-        catBadge.textContent = pr.charAt(0).toUpperCase() + pr.slice(1);
+        badgeEl.className = 'badge p-' + pr;
+        badgeEl.textContent = pr.charAt(0).toUpperCase() + pr.slice(1);
       }
-      catInput.addEventListener('input', syncCatPrio);
-      syncCatPrio();
+      inputEl.addEventListener('input', sync);
+      sync();
+      return sync;
     }
+    bindCatPrioPreview(document.getElementById('cat-add-name'), document.getElementById('cat-prio-badge'));
+    var syncEditCatPrio = bindCatPrioPreview(document.getElementById('cat-edit-name'), document.getElementById('cat-edit-prio-badge'));
+
+    $all('[data-cat-edit]', mainEl).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idEl = document.getElementById('cat-edit-id');
+        var nameEl = document.getElementById('cat-edit-name');
+        var sosEl = document.getElementById('cat-edit-sos-note');
+        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+        if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
+        if (sosEl) sosEl.hidden = btn.getAttribute('data-sos') !== '1';
+        if (syncEditCatPrio) syncEditCatPrio();
+      });
+    });
 
     // 14f. Settings workspace tabs, animated nav pill, live hotline preview, SMS counter, password strength
     var settingsNav = $('.settings-nav', mainEl);
@@ -3451,7 +3510,7 @@ header('X-Content-Type-Options: nosniff');
       syncSecPw();
     }
 
-    // 14g. Directory Table / Card Grid view switcher (Volunteers & Residents)
+    // 14g. Directory Table (desktop) / Card Grid (tablet, reduced desktop, mobile)
     $all('[data-dir-switch]', mainEl).forEach(function (sw) {
       var key = sw.getAttribute('data-dir-switch') || 'default';
       var target = $('[data-dir-view="' + key + '"]', mainEl);
@@ -3468,14 +3527,15 @@ header('X-Content-Type-Options: nosniff');
       sw.classList.add('has-pill');
 
       var storageKey = 'cairs_dir_view_' + key;
-      var savedMode = 'table';
+      var desktopMode = 'table';
       try {
         var raw = localStorage.getItem(storageKey);
-        if (raw === 'grid' || raw === 'table') savedMode = raw;
+        if (raw === 'grid' || raw === 'table') desktopMode = raw;
       } catch (_) {}
 
       var lastRect = null;
       function positionPill(animate) {
+        if (sw.hidden) return;
         var active = $('.view-switch-btn.is-active', sw) || btns[0];
         if (!active || !active.offsetWidth || !active.offsetHeight) {
           pill.classList.remove('is-ready');
@@ -3506,45 +3566,65 @@ header('X-Content-Type-Options: nosniff');
         }
       }
 
-      function applyView(mode, animate) {
-        var next = mode === 'grid' ? 'grid' : 'table';
+      function isCompactViewport() {
+        var w = target.clientWidth || (mainEl ? mainEl.clientWidth : 0);
+        return w > 0 ? w < 940 : window.innerWidth <= 1180;
+      }
+
+      var lastCompact = null;
+      function syncView(animate, persistDesktop) {
+        var compact = isCompactViewport();
+        var activeMode = compact ? 'grid' : desktopMode;
+        sw.hidden = compact;
         btns.forEach(function (b) {
-          var on = b.getAttribute('data-view-mode') === next;
+          var on = b.getAttribute('data-view-mode') === activeMode;
           b.classList.toggle('is-active', on);
           b.setAttribute('aria-pressed', on ? 'true' : 'false');
         });
-        target.classList.toggle('is-card-grid', next === 'grid');
+        target.classList.toggle('is-card-grid', activeMode === 'grid');
         if (animate && !reduceMotion) {
           target.classList.remove('is-view-entering');
           void target.offsetWidth;
           target.classList.add('is-view-entering');
         }
-        positionPill(animate);
-        try { localStorage.setItem(storageKey, next); } catch (_) {}
+        if (!compact) positionPill(animate || lastCompact === true);
+        lastCompact = compact;
+        if (persistDesktop && !compact) {
+          try { localStorage.setItem(storageKey, desktopMode); } catch (_) {}
+        }
       }
 
       btns.forEach(function (btn) {
         btn.addEventListener('click', function () {
+          if (isCompactViewport()) return;
           var mode = btn.getAttribute('data-view-mode') || 'table';
-          if (btn.classList.contains('is-active')) {
+          if (mode === desktopMode && btn.classList.contains('is-active')) {
             positionPill(false);
             return;
           }
-          applyView(mode, true);
+          desktopMode = mode === 'grid' ? 'grid' : 'table';
+          syncView(true, true);
         });
       });
 
       if (window.ResizeObserver) {
-        var ro = new ResizeObserver(function () { positionPill(false); });
+        var ro = new ResizeObserver(function () {
+          syncView(false, false);
+          positionPill(false);
+        });
+        ro.observe(target);
         ro.observe(sw);
       } else {
-        window.addEventListener('resize', function () { positionPill(false); });
+        window.addEventListener('resize', function () {
+          syncView(false, false);
+          positionPill(false);
+        });
       }
       if (document.fonts && document.fonts.ready) {
         document.fonts.ready.then(function () { positionPill(false); });
       }
 
-      applyView(savedMode, false);
+      syncView(false, false);
       requestAnimationFrame(function () { positionPill(false); });
     });
   }

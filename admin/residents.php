@@ -272,36 +272,41 @@ require __DIR__ . '/../includes/header.php';
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog modal-md" role="dialog" aria-modal="true" aria-labelledby="res-add-title">
     <div class="modal-head">
-      <div>
-        <h3 id="res-add-title">Register Resident Account</h3>
-        <p>Create a verified resident profile for community reporting and SOS access.</p>
+      <div class="modal-head-copy">
+        <span class="modal-head-ic"><?= icon('users', 18) ?></span>
+        <div>
+          <h3 id="res-add-title">Register Resident Account</h3>
+          <p>Create a verified resident profile for community reporting and SOS access.</p>
+        </div>
       </div>
       <button type="button" class="notif-head-ic" data-modal-close aria-label="Close"><?= icon('x', 16) ?></button>
     </div>
-    <form method="post">
+    <form class="modal-form" method="post">
       <?= csrfField() ?><input type="hidden" name="action" value="add">
-      <label for="res-add-name">Full name</label>
-      <input id="res-add-name" name="full_name" required placeholder="e.g. Maria Clara Santos" data-autofocus>
-      <div class="form-row">
-        <div>
-          <label for="res-add-email">Email address</label>
-          <input type="email" id="res-add-email" name="email" required placeholder="resident@example.com">
+      <div class="modal-body">
+        <label for="res-add-name">Full name</label>
+        <input id="res-add-name" name="full_name" required placeholder="e.g. Maria Clara Santos" data-autofocus>
+        <div class="form-row">
+          <div>
+            <label for="res-add-email">Email address</label>
+            <input type="email" id="res-add-email" name="email" required placeholder="resident@example.com">
+          </div>
+          <div>
+            <label for="res-add-phone">Mobile number</label>
+            <input id="res-add-phone" name="phone" placeholder="09XX-XXX-XXXX">
+          </div>
         </div>
-        <div>
-          <label for="res-add-phone">Mobile number</label>
-          <input id="res-add-phone" name="phone" placeholder="09XX-XXX-XXXX">
+        <label for="res-add-address">Address / Purok</label>
+        <input id="res-add-address" name="address" required placeholder="e.g. Purok 4, Rizal Street">
+        <label for="res-add-password">Temporary password</label>
+        <div class="pw-gen-row">
+          <div class="pm-input-ic pm-pw-ic">
+            <?= icon('key', 16) ?>
+            <input id="res-add-password" type="password" name="password" required minlength="6" placeholder="Min. 6 characters">
+            <button type="button" class="pm-eye-btn" data-pm-eye="res-add-password" aria-label="Show password"><?= icon('eye', 16) ?></button>
+          </div>
+          <button type="button" class="btn ghost small pw-gen-btn" data-pw-gen="res-add-password">Generate</button>
         </div>
-      </div>
-      <label for="res-add-address">Address / Purok</label>
-      <input id="res-add-address" name="address" required placeholder="e.g. Purok 4, Rizal Street">
-      <label for="res-add-password">Temporary password</label>
-      <div class="pw-gen-row">
-        <div class="pm-input-ic pm-pw-ic">
-          <?= icon('key', 16) ?>
-          <input id="res-add-password" type="password" name="password" required minlength="6" placeholder="Minimum 6 characters">
-          <button type="button" class="pm-eye-btn" data-pm-eye="res-add-password" aria-label="Show password"><?= icon('eye', 16) ?></button>
-        </div>
-        <button type="button" class="btn ghost small pw-gen-btn" data-pw-gen="res-add-password">Generate</button>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn ghost" data-modal-close>Cancel</button>
@@ -315,28 +320,33 @@ require __DIR__ . '/../includes/header.php';
   <div class="modal-backdrop" data-modal-close></div>
   <div class="modal-dialog modal-md" role="dialog" aria-modal="true" aria-labelledby="res-edit-title">
     <div class="modal-head">
-      <div>
-        <h3 id="res-edit-title">Edit Resident Details</h3>
-        <p>Update resident contact details and purok information.</p>
+      <div class="modal-head-copy">
+        <span class="modal-head-ic"><?= icon('edit', 18) ?></span>
+        <div>
+          <h3 id="res-edit-title">Edit Resident Details</h3>
+          <p>Update resident contact details and purok information.</p>
+        </div>
       </div>
       <button type="button" class="notif-head-ic" data-modal-close aria-label="Close"><?= icon('x', 16) ?></button>
     </div>
-    <form method="post">
+    <form class="modal-form" method="post">
       <?= csrfField() ?><input type="hidden" name="action" value="edit"><input type="hidden" id="res-edit-id" name="id" value="">
-      <label for="res-edit-name">Full name</label>
-      <input id="res-edit-name" name="full_name" required data-autofocus>
-      <div class="form-row">
-        <div>
-          <label for="res-edit-email">Account email</label>
-          <input id="res-edit-email" type="email" disabled>
+      <div class="modal-body">
+        <label for="res-edit-name">Full name</label>
+        <input id="res-edit-name" name="full_name" required data-autofocus>
+        <div class="form-row">
+          <div>
+            <label for="res-edit-email">Account email</label>
+            <input id="res-edit-email" type="email" disabled>
+          </div>
+          <div>
+            <label for="res-edit-phone">Mobile number</label>
+            <input id="res-edit-phone" name="phone" placeholder="09XX-XXX-XXXX">
+          </div>
         </div>
-        <div>
-          <label for="res-edit-phone">Mobile number</label>
-          <input id="res-edit-phone" name="phone" placeholder="09XX-XXX-XXXX">
-        </div>
+        <label for="res-edit-address">Address / Purok</label>
+        <input id="res-edit-address" name="address" placeholder="e.g. Purok 5">
       </div>
-      <label for="res-edit-address">Address / Purok</label>
-      <input id="res-edit-address" name="address" placeholder="e.g. Purok 5">
       <div class="modal-foot">
         <button type="button" class="btn ghost" data-modal-close>Cancel</button>
         <button type="submit" class="btn">Save Changes</button>

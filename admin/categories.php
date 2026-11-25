@@ -122,72 +122,82 @@ require __DIR__ . '/../includes/header.php';
 </form>
 
 <div class="two">
-  <div class="card tablewrap">
-  <?php if (!$rows): ?>
-    <div class="empty-state">
-      <span class="empty-state-ic"><?= icon('tag', 22) ?></span>
-      <h3><?= $hasFilters ? 'No categories match your search' : 'No categories configured' ?></h3>
-      <p><?= $hasFilters ? 'Try resetting the priority filter or search term.' : 'Create your first incident category using the panel on the right.' ?></p>
-      <?php if ($hasFilters): ?><a class="btn ghost small" href="categories.php">Clear filters</a><?php endif; ?>
+  <section class="cat-directory" aria-label="Category directory">
+    <div class="cat-dir-head">
+      <h2>Category Directory</h2>
+      <span class="muted"><?= count($rows) ?> classification<?= count($rows) === 1 ? '' : 's' ?> &middot; Click Rename to edit</span>
     </div>
-  <?php else: ?>
-  <table>
-    <thead>
-      <tr>
-        <th>Category Name</th>
-        <th>Auto-Priority</th>
-        <th>Report Share &amp; Open</th>
-        <th class="act">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-    <?php foreach ($rows as $c):
-      $tot = (int) $c['total'];
-      $openCnt = (int) $c['open_count'];
-      $sharePct = $categorizedReports > 0 ? (int) round(($tot / $categorizedReports) * 100) : 0;
-      $pr = defaultPriority((string) $c['name']);
-      $isSosCore = in_array(strtolower(trim((string) $c['name'])), $sosDefaults, true);
+    <?php if (!$rows): ?>
+      <div class="card">
+        <div class="empty-state">
+          <span class="empty-state-ic"><?= icon('tag', 22) ?></span>
+          <h3><?= $hasFilters ? 'No categories match your search' : 'No categories configured' ?></h3>
+          <p><?= $hasFilters ? 'Try resetting the priority filter or search term.' : 'Create your first incident category using the panel on the right.' ?></p>
+          <?php if ($hasFilters): ?><a class="btn ghost small" href="categories.php">Clear filters</a><?php endif; ?>
+        </div>
+      </div>
+    <?php else:
+      $prioToneMap = priorityTones();
     ?>
-    <tr>
-      <td>
-        <form method="post" style="display:flex;gap:8px;align-items:center"><?= csrfField() ?>
-          <input type="hidden" name="action" value="rename"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
-          <input name="name" maxlength="60" required value="<?= e($c['name']) ?>" aria-label="Category name" style="flex:1;min-width:140px">
-          <button class="btn ghost small" type="submit">Save</button>
-        </form>
-        <?php if ($isSosCore): ?>
-          <div class="cat-name-meta"><?= icon('siren', 13) ?><span>Mapped to Resident SOS quick button</span></div>
-        <?php endif; ?>
-      </td>
-      <td><?= prio($pr) ?></td>
-      <td>
-        <div class="meter">
-          <div class="meter-top">
-            <span><?= $tot ?> total &middot; <?= $openCnt ?> open</span>
-            <small><?= $sharePct ?>%</small>
+      <div class="cat-grid">
+        <?php foreach ($rows as $c):
+          $tot = (int) $c['total'];
+          $openCnt = (int) $c['open_count'];
+          $sharePct = $categorizedReports > 0 ? (int) round(($tot / $categorizedReports) * 100) : 0;
+          $pr = defaultPriority((string) $c['name']);
+          $icTone = $prioToneMap[$pr] ?? 'primary';
+          $isSosCore = in_array(strtolower(trim((string) $c['name'])), $sosDefaults, true);
+        ?>
+        <article class="cat-card">
+          <div class="cat-card-head">
+            <div class="cat-card-title">
+              <span class="cat-card-ic tone-<?= e($icTone) ?>"><?= icon($isSosCore ? 'siren' : 'tag', 17) ?></span>
+              <div class="cat-card-copy">
+                <h3 class="cat-card-name"><?= e($c['name']) ?></h3>
+                <?php if ($isSosCore): ?>
+                  <span class="cat-sos-tag"><?= icon('siren', 12) ?> Mapped to SOS quick button</span>
+                <?php endif; ?>
+              </div>
+            </div>
+            <?= prio($pr) ?>
           </div>
-          <div class="meter-track"><i class="meter-fill<?= $tot === 0 ? ' tone-muted' : '' ?>" style="width:<?= $tot > 0 ? max(6, $sharePct) : 0 ?>%"></i></div>
-        </div>
-      </td>
-      <td class="act">
-        <div class="row-actions">
-          <a class="btn ghost small" href="reports.php?category=<?= (int) $c['id'] ?>">View reports</a>
-          <?php if ($tot > 0): ?>
-            <span class="muted" style="font-size:.8rem;padding:0 6px">In use</span>
-          <?php else: ?>
-          <form method="post" data-confirm="Delete the category &quot;<?= e($c['name']) ?>&quot;?"><?= csrfField() ?>
-            <input type="hidden" name="action" value="delete"><input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
-            <button class="btn danger small" type="submit">Delete</button>
-          </form>
-          <?php endif; ?>
-        </div>
-      </td>
-    </tr>
-    <?php endforeach; ?>
-    </tbody>
-  </table>
-  <?php endif; ?>
-  </div>
+
+          <div class="cat-card-metrics">
+            <div class="meter-top">
+              <span><strong><?= $tot ?></strong> total &middot; <?= $openCnt ?> open</span>
+              <small><?= $sharePct ?>% share</small>
+            </div>
+            <div class="meter-track"><i class="meter-fill<?= $tot === 0 ? ' tone-muted' : '' ?>" style="width:<?= $tot > 0 ? max(6, $sharePct) : 0 ?>%"></i></div>
+          </div>
+
+          <div class="cat-card-foot">
+            <a class="btn ghost small" href="reports.php?category=<?= (int) $c['id'] ?>"><?= icon('file', 14) ?> View reports</a>
+            <div class="cat-card-actions">
+              <button type="button" class="btn ghost small"
+                      data-cat-edit
+                      data-modal-open="cat-edit-modal"
+                      data-id="<?= (int) $c['id'] ?>"
+                      data-name="<?= e($c['name']) ?>"
+                      data-sos="<?= $isSosCore ? '1' : '0' ?>">
+                <?= icon('edit', 14) ?> Rename
+              </button>
+              <?php if ($tot > 0): ?>
+                <span class="cat-inuse-tag" title="Categories with existing reports cannot be deleted"><?= icon('lock', 12) ?> In use</span>
+              <?php else: ?>
+                <form method="post" data-confirm="Delete the category &quot;<?= e($c['name']) ?>&quot;?">
+                  <?= csrfField() ?>
+                  <input type="hidden" name="action" value="delete">
+                  <input type="hidden" name="id" value="<?= (int) $c['id'] ?>">
+                  <button class="btn danger small" type="submit"><?= icon('trash', 14) ?> Delete</button>
+                </form>
+              <?php endif; ?>
+            </div>
+          </div>
+        </article>
+        <?php endforeach; ?>
+      </div>
+    <?php endif; ?>
+  </section>
 
   <div class="card sticky-card">
     <h2>Add a category</h2>
@@ -221,6 +231,43 @@ require __DIR__ . '/../includes/header.php';
       </table>
       <p class="cat-guide-note">Resident SOS buttons route directly to the five high-priority defaults above. Rename those carefully to preserve SOS categorization.</p>
     </div>
+  </div>
+</div>
+
+<div class="modal" id="cat-edit-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog modal-md" role="dialog" aria-modal="true" aria-labelledby="cat-edit-title">
+    <div class="modal-head">
+      <div class="modal-head-copy">
+        <span class="modal-head-ic"><?= icon('tag', 18) ?></span>
+        <div>
+          <h3 id="cat-edit-title">Rename Category</h3>
+          <p>Update the display name and preview its automatic dispatch priority.</p>
+        </div>
+      </div>
+      <button type="button" class="notif-head-ic" data-modal-close aria-label="Close"><?= icon('x', 16) ?></button>
+    </div>
+    <form class="modal-form" method="post">
+      <?= csrfField() ?>
+      <input type="hidden" name="action" value="rename">
+      <input type="hidden" id="cat-edit-id" name="id" value="">
+      <div class="modal-body">
+        <label for="cat-edit-name">Category name</label>
+        <input id="cat-edit-name" name="name" maxlength="60" required data-autofocus>
+        <div class="cat-prio-preview">
+          <span>Auto-assigned priority:</span>
+          <span class="badge p-medium" id="cat-edit-prio-badge">Medium</span>
+        </div>
+        <div class="cat-sos-note" id="cat-edit-sos-note" hidden>
+          <?= icon('alert', 16) ?>
+          <span>This category is mapped to a Resident SOS quick button. Renaming it changes how emergency SOS alerts are prioritized and matched.</span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" data-modal-close>Cancel</button>
+        <button type="submit" class="btn">Save Changes</button>
+      </div>
+    </form>
   </div>
 </div>
 <?php require __DIR__ . '/../includes/footer.php'; ?>
