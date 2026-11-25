@@ -18,7 +18,7 @@ $landingHotlines = renderHotlines();
 $title = 'Community incident reporting';
 require __DIR__ . '/includes/header.php';
 ?>
-<div class="landing">
+<div class="landing" id="top">
   <div class="hero-shapes" aria-hidden="true">
     <div class="landing-grid-layer"></div>
     <span class="mesh-blob blob-1"></span>
@@ -150,8 +150,7 @@ require __DIR__ . '/includes/header.php';
     <span>&copy; <?= date('Y') ?> <?= e($site) ?> &middot; <?= e($barangay) ?></span>
     <nav class="landing-foot-links" aria-label="Footer links">
       <a href="<?= BASE_URL ?>/resident/report.php">Report an incident</a>
-      <a href="<?= BASE_URL ?>/login.php">Log in</a>
-      <a href="<?= BASE_URL ?>/register.php">Register</a>
+      <a href="#top">Back to top</a>
     </nav>
   </footer>
 </div>
