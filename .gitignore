@@ -2,3 +2,5 @@
 assets/uploads/*
 !assets/uploads/.gitkeep
 public/assets/aistudio/
+bun.lock
+bun.lockb
