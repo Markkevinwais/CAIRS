@@ -156,9 +156,12 @@ require __DIR__ . '/../includes/header.php';
   </div>
   <div class="page-actions noprint">
     <a class="btn ghost small" href="?<?= e(http_build_query($exportParams)) ?>"><?= icon('download', 15) ?> Export CSV</a>
-    <a class="btn small" href="dispatch.php"><?= icon('radar', 16) ?> Pin &amp; Dispatch</a>
+    <a class="btn ghost small" href="dispatch.php"><?= icon('radar', 16) ?> Pin &amp; Dispatch</a>
+    <button type="button" class="btn small" data-modal-open="vol-add-modal"><?= icon('plus', 16) ?> Add Volunteer</button>
   </div>
 </div>
+
+<?php foreach ($errors as $er): ?><div class="flash error"><?= e($er) ?></div><?php endforeach; ?>
 
 <div class="grid grid-4">
   <?= statCard('shield', 'Total responders', $totalVols, 'On community roster', 'primary') ?>
@@ -188,99 +191,105 @@ require __DIR__ . '/../includes/header.php';
   <span class="filters-count"><?= count($rows) ?> of <?= $totalVols ?> shown</span>
 </form>
 
-<div class="two">
-  <div class="card tablewrap">
-  <?php if (!$rows): ?>
-    <div class="empty-state">
-      <span class="empty-state-ic"><?= icon('shield', 22) ?></span>
-      <h3><?= $hasFilters ? 'No matching volunteers' : 'No volunteers on roster yet' ?></h3>
-      <p><?= $hasFilters ? 'Adjust your search or availability filter to view other responders.' : 'Use the onboarding form on the right to add your first barangay volunteer.' ?></p>
-      <?php if ($hasFilters): ?><a class="btn ghost small" href="volunteers.php">Clear filters</a><?php endif; ?>
-    </div>
-  <?php else: ?>
-  <table>
-    <thead>
-      <tr>
-        <th>Responder</th>
-        <th>Contact</th>
-        <th>Workload &amp; Rate</th>
-        <th>Status</th>
-        <th class="act">Actions</th>
-      </tr>
-    </thead>
-    <tbody>
-    <?php foreach ($rows as $volUser):
-      $actCount = (int) $volUser['active_jobs'];
-      $doneCount = (int) $volUser['done'];
-      $handledTotal = $actCount + $doneCount;
-      $resPct = $handledTotal > 0 ? (int) round(($doneCount / $handledTotal) * 100) : 0;
-      $meterTone = $handledTotal === 0 ? 'muted' : ($resPct >= 75 ? 'success' : ($resPct >= 40 ? 'warning' : 'danger'));
-    ?>
-    <tr>
-      <td>
-        <div class="user-cell">
-          <?= renderAvatar($volUser) ?>
-          <div class="user-cell-copy">
-            <span class="user-cell-name"><?= e($volUser['full_name']) ?></span>
-            <span class="user-cell-meta"><?= e($volUser['address'] ?: 'Barangay Station') ?> &middot; Joined <?= e(fmtDate($volUser['created_at'])) ?></span>
-          </div>
-        </div>
-      </td>
-      <td>
-        <div class="contact-stack">
-          <span class="contact-line"><?= icon('mail', 14) ?><span><?= e($volUser['email']) ?></span></span>
-          <span class="contact-line is-sub"><?= icon('phone', 14) ?><span><?= e($volUser['phone'] ?: 'No phone saved') ?></span></span>
-        </div>
-      </td>
-      <td>
-        <div class="meter">
-          <div class="meter-top">
-            <span><?= $actCount ?> active &middot; <?= $doneCount ?> done</span>
-            <small><?= $resPct ?>%</small>
-          </div>
-          <div class="meter-track"><i class="meter-fill tone-<?= e($meterTone) ?>" style="width:<?= $handledTotal > 0 ? max(8, $resPct) : 0 ?>%"></i></div>
-        </div>
-      </td>
-      <td>
-        <span class="badge <?= $volUser['status'] === 'active' ? 's-resolved' : 's-rejected' ?>"><?= e(ucfirst((string) $volUser['status'])) ?></span>
-      </td>
-      <td class="act">
-        <div class="row-actions">
-          <button type="button" class="btn ghost small"
-                  data-vol-edit
-                  data-modal-open="vol-edit-modal"
-                  data-id="<?= (int) $volUser['id'] ?>"
-                  data-name="<?= e($volUser['full_name']) ?>"
-                  data-email="<?= e($volUser['email']) ?>"
-                  data-phone="<?= e($volUser['phone'] ?? '') ?>"
-                  data-address="<?= e($volUser['address'] ?? '') ?>">
-            <?= icon('edit', 14) ?> Edit
-          </button>
-          <?php if ($volUser['status'] === 'active'): ?>
-            <a class="btn ghost small" href="dispatch.php"><?= icon('radar', 14) ?> Dispatch</a>
-          <?php endif; ?>
-          <form method="post" data-confirm="<?= $volUser['status'] === 'active' ? 'Deactivate this volunteer? They will no longer receive assignments.' : 'Reactivate this volunteer account?' ?>">
-            <?= csrfField() ?>
-            <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $volUser['id'] ?>">
-            <button class="btn small <?= $volUser['status'] === 'active' ? 'danger' : 'ghost' ?>" type="submit"><?= $volUser['status'] === 'active' ? 'Deactivate' : 'Activate' ?></button>
-          </form>
-        </div>
-      </td>
-    </tr>
-    <?php endforeach; ?>
-    </tbody>
-  </table>
-  <?php endif; ?>
+<div class="card tablewrap<?= $rows ? ' has-mobile-cards' : '' ?>">
+<?php if (!$rows): ?>
+  <div class="empty-state">
+    <span class="empty-state-ic"><?= icon('shield', 22) ?></span>
+    <h3><?= $hasFilters ? 'No matching volunteers' : 'No volunteers on roster yet' ?></h3>
+    <p><?= $hasFilters ? 'Adjust your search or availability filter to view other responders.' : 'Onboard your first barangay volunteer to start assigning field dispatches.' ?></p>
+    <?php if ($hasFilters): ?><a class="btn ghost small" href="volunteers.php">Clear filters</a><?php else: ?><button type="button" class="btn small" data-modal-open="vol-add-modal"><?= icon('plus', 15) ?> Add Volunteer</button><?php endif; ?>
   </div>
+<?php else: ?>
+<table class="dir-table mobile-cards">
+  <thead>
+    <tr>
+      <th>Responder</th>
+      <th>Contact</th>
+      <th>Workload &amp; Rate</th>
+      <th>Status</th>
+      <th class="act">Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+  <?php foreach ($rows as $volUser):
+    $actCount = (int) $volUser['active_jobs'];
+    $doneCount = (int) $volUser['done'];
+    $handledTotal = $actCount + $doneCount;
+    $resPct = $handledTotal > 0 ? (int) round(($doneCount / $handledTotal) * 100) : 0;
+    $meterTone = $handledTotal === 0 ? 'muted' : ($resPct >= 75 ? 'success' : ($resPct >= 40 ? 'warning' : 'danger'));
+  ?>
+  <tr>
+    <td data-label="Responder">
+      <div class="user-cell">
+        <?= renderAvatar($volUser) ?>
+        <div class="user-cell-copy">
+          <span class="user-cell-name"><?= e($volUser['full_name']) ?></span>
+          <span class="user-cell-meta"><?= e($volUser['address'] ?: 'Barangay Station') ?> &middot; Joined <?= e(fmtDate($volUser['created_at'])) ?></span>
+        </div>
+      </div>
+    </td>
+    <td data-label="Contact">
+      <div class="contact-stack">
+        <span class="contact-line"><?= icon('mail', 14) ?><span><?= e($volUser['email']) ?></span></span>
+        <span class="contact-line is-sub is-phone"><?= icon('phone', 14) ?><span><?= e($volUser['phone'] ?: 'No phone saved') ?></span></span>
+      </div>
+    </td>
+    <td data-label="Workload &amp; Rate">
+      <div class="meter">
+        <div class="meter-top">
+          <span><?= $actCount ?> active &middot; <?= $doneCount ?> done</span>
+          <small><?= $resPct ?>%</small>
+        </div>
+        <div class="meter-track"><i class="meter-fill tone-<?= e($meterTone) ?>" style="width:<?= $handledTotal > 0 ? max(8, $resPct) : 0 ?>%"></i></div>
+      </div>
+    </td>
+    <td data-label="Status">
+      <span class="badge <?= $volUser['status'] === 'active' ? 's-resolved' : 's-rejected' ?>"><?= e(ucfirst((string) $volUser['status'])) ?></span>
+    </td>
+    <td class="act" data-label="Actions">
+      <div class="row-actions">
+        <button type="button" class="btn ghost small"
+                data-vol-edit
+                data-modal-open="vol-edit-modal"
+                data-id="<?= (int) $volUser['id'] ?>"
+                data-name="<?= e($volUser['full_name']) ?>"
+                data-email="<?= e($volUser['email']) ?>"
+                data-phone="<?= e($volUser['phone'] ?? '') ?>"
+                data-address="<?= e($volUser['address'] ?? '') ?>">
+          <?= icon('edit', 14) ?> Edit
+        </button>
+        <?php if ($volUser['status'] === 'active'): ?>
+          <a class="btn ghost small" href="dispatch.php"><?= icon('radar', 14) ?> Dispatch</a>
+        <?php endif; ?>
+        <form method="post" data-confirm="<?= $volUser['status'] === 'active' ? 'Deactivate this volunteer? They will no longer receive assignments.' : 'Reactivate this volunteer account?' ?>">
+          <?= csrfField() ?>
+          <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $volUser['id'] ?>">
+          <button class="btn small <?= $volUser['status'] === 'active' ? 'danger' : 'ghost' ?>" type="submit"><?= $volUser['status'] === 'active' ? 'Deactivate' : 'Activate' ?></button>
+        </form>
+      </div>
+    </td>
+  </tr>
+  <?php endforeach; ?>
+  </tbody>
+</table>
+<?php endif; ?>
+</div>
 
-  <div class="card sticky-card">
-    <h2>Onboard a volunteer</h2>
-    <p class="card-sub">Create a responder account so they can log in, view assigned dispatches, and post field updates.</p>
-    <?php foreach ($errors as $er): ?><div class="flash error" style="margin-top:12px"><?= e($er) ?></div><?php endforeach; ?>
+<div class="modal" id="vol-add-modal"<?= $errors ? ' data-modal-autoopen' : '' ?>>
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog modal-md" role="dialog" aria-modal="true" aria-labelledby="vol-add-title">
+    <div class="modal-head">
+      <div>
+        <h3 id="vol-add-title">Onboard a Volunteer</h3>
+        <p>Create a responder account so they can log in, view assigned dispatches, and post field updates.</p>
+      </div>
+      <button type="button" class="notif-head-ic" data-modal-close aria-label="Close"><?= icon('x', 16) ?></button>
+    </div>
+    <?php foreach ($errors as $er): ?><div class="flash error"><?= e($er) ?></div><?php endforeach; ?>
     <form method="post">
       <?= csrfField() ?><input type="hidden" name="action" value="add">
       <label for="full_name">Full name</label>
-      <input id="full_name" name="full_name" required placeholder="e.g. Marco Dela Cruz" value="<?= e($old['full_name']) ?>">
+      <input id="full_name" name="full_name" required placeholder="e.g. Marco Dela Cruz" value="<?= e($old['full_name']) ?>" data-autofocus>
       <label for="email">Email address</label>
       <input type="email" id="email" name="email" required placeholder="responder@cairs.local" value="<?= e($old['email']) ?>">
       <div class="form-row">
@@ -302,7 +311,10 @@ require __DIR__ . '/../includes/header.php';
         </div>
         <button type="button" class="btn ghost small pw-gen-btn" data-pw-gen="vol-add-password">Generate</button>
       </div>
-      <p style="margin-top:16px;margin-bottom:0"><button class="btn" type="submit" style="width:100%"><?= icon('plus', 16) ?> Create volunteer account</button></p>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" data-modal-close>Cancel</button>
+        <button class="btn" type="submit"><?= icon('plus', 16) ?> Create volunteer account</button>
+      </div>
     </form>
   </div>
 </div>

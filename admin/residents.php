@@ -181,7 +181,7 @@ require __DIR__ . '/../includes/header.php';
   <span class="filters-count"><?= count($rows) ?> of <?= $totalCount ?> shown</span>
 </form>
 
-<div class="card tablewrap">
+<div class="card tablewrap<?= $rows ? ' has-mobile-cards' : '' ?>">
 <?php if (!$rows): ?>
   <div class="empty-state">
     <span class="empty-state-ic"><?= icon('users', 22) ?></span>
@@ -190,7 +190,7 @@ require __DIR__ . '/../includes/header.php';
     <?php if ($hasFilters): ?><a class="btn ghost small" href="residents.php">Clear filters</a><?php else: ?><button type="button" class="btn small" data-modal-open="res-add-modal"><?= icon('plus', 15) ?> Register Resident</button><?php endif; ?>
   </div>
 <?php else: ?>
-<table>
+<table class="dir-table mobile-cards">
   <thead>
     <tr>
       <th>Resident</th>
@@ -204,7 +204,7 @@ require __DIR__ . '/../includes/header.php';
   <tbody>
   <?php foreach ($rows as $resUser): ?>
     <tr>
-      <td>
+      <td data-label="Resident">
         <div class="user-cell">
           <?= renderAvatar($resUser) ?>
           <div class="user-cell-copy">
@@ -213,16 +213,16 @@ require __DIR__ . '/../includes/header.php';
           </div>
         </div>
       </td>
-      <td>
+      <td data-label="Contact">
         <div class="contact-stack">
           <span class="contact-line"><?= icon('mail', 14) ?><span><?= e($resUser['email']) ?></span></span>
-          <span class="contact-line is-sub"><?= icon('phone', 14) ?><span><?= e($resUser['phone'] ?: 'No phone saved') ?></span></span>
+          <span class="contact-line is-sub is-phone"><?= icon('phone', 14) ?><span><?= e($resUser['phone'] ?: 'No phone saved') ?></span></span>
         </div>
       </td>
-      <td>
+      <td data-label="Address / Purok">
         <span class="contact-line"><?= icon('pin', 14) ?><span><?= e($resUser['address'] ?: 'Not specified') ?></span></span>
       </td>
-      <td class="num">
+      <td class="num" data-label="Reports">
         <div class="table-num-stack">
           <strong><?= (int) $resUser['total'] ?></strong>
           <?php if ((int) $resUser['total'] > 0): ?>
@@ -232,10 +232,10 @@ require __DIR__ . '/../includes/header.php';
           <?php endif; ?>
         </div>
       </td>
-      <td>
+      <td data-label="Status">
         <span class="badge <?= $resUser['status'] === 'active' ? 's-resolved' : 's-rejected' ?>"><?= e(ucfirst((string) $resUser['status'])) ?></span>
       </td>
-      <td class="act">
+      <td class="act" data-label="Actions">
         <div class="row-actions">
           <button type="button" class="btn ghost small"
                   data-res-edit

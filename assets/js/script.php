@@ -312,7 +312,25 @@ header('X-Content-Type-Options: nosniff');
   /* 5. MODALS + CONFIRM DIALOG ------------------------------------------- */
   var lastFocus = null;
 
+  function portalPageModals() {
+    var mainEl = document.getElementById('main');
+    if (!mainEl) return;
+    $all('.modal', mainEl).forEach(function (m) {
+      if (m.id) {
+        $all('.modal[data-spa-modal]', document.body).forEach(function (existing) {
+          if (existing !== m && existing.id === m.id) existing.remove();
+        });
+      }
+      m.setAttribute('data-spa-modal', '1');
+      document.body.appendChild(m);
+    });
+  }
+
   function openModal(modal) {
+    if (modal.parentNode !== document.body) {
+      modal.setAttribute('data-spa-modal', '1');
+      document.body.appendChild(modal);
+    }
     lastFocus = document.activeElement;
     document.body.classList.add('has-modal');
     modal.classList.add('is-mounted');
@@ -1316,9 +1334,57 @@ header('X-Content-Type-Options: nosniff');
     var markAllBtn = $('#notif-mark-all');
     var clearAllBtn = $('#notif-clear-all');
     var closeBtn = $('#notif-close');
+    var tabsWrap = $('.notif-pop-tabs', popover);
     var tabButtons = $all('[data-notif-tab]', popover);
+    var tabPill = null;
+    var lastPillRect = null;
     var activeTab = 'all';
     var state = { items: [], unread: 0, total: 0, loaded: false };
+
+    if (tabsWrap && tabButtons.length) {
+      tabPill = $('.notif-tab-pill', tabsWrap);
+      if (!tabPill) {
+        tabPill = document.createElement('span');
+        tabPill.className = 'notif-tab-pill';
+        tabPill.setAttribute('aria-hidden', 'true');
+        tabsWrap.insertBefore(tabPill, tabsWrap.firstChild);
+      }
+      tabsWrap.classList.add('has-pill');
+    }
+
+    function positionTabPill(animate) {
+      if (!tabsWrap || !tabPill || popover.hidden) return;
+      var activeBtn = $('.notif-tab.is-active', tabsWrap) || tabButtons[0];
+      if (!activeBtn || !activeBtn.offsetWidth || !activeBtn.offsetHeight) {
+        tabPill.classList.remove('is-ready');
+        lastPillRect = null;
+        return;
+      }
+      var x = activeBtn.offsetLeft;
+      var y = activeBtn.offsetTop;
+      var w = activeBtn.offsetWidth;
+      var h = activeBtn.offsetHeight;
+
+      if (lastPillRect && lastPillRect.x === x && lastPillRect.y === y && lastPillRect.w === w && lastPillRect.h === h && tabPill.classList.contains('is-ready')) {
+        return;
+      }
+      lastPillRect = { x: x, y: y, w: w, h: h };
+
+      if (!animate || reduceMotion || !tabPill.classList.contains('is-ready')) {
+        var prevTr = tabPill.style.transition;
+        tabPill.style.transition = 'none';
+        tabPill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+        tabPill.style.width = w + 'px';
+        tabPill.style.height = h + 'px';
+        tabPill.offsetHeight;
+        tabPill.style.transition = prevTr || '';
+        tabPill.classList.add('is-ready');
+      } else {
+        tabPill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+        tabPill.style.width = w + 'px';
+        tabPill.style.height = h + 'px';
+      }
+    }
 
     function setOpen(open) {
       popover.hidden = !open;
@@ -1331,6 +1397,7 @@ header('X-Content-Type-Options: nosniff');
           var b = $('[data-dropdown]', d);
           if (b) b.setAttribute('aria-expanded', 'false');
         });
+        requestAnimationFrame(function () { positionTabPill(false); });
         loadNotifications();
       }
     }
@@ -1360,7 +1427,7 @@ header('X-Content-Type-Options: nosniff');
       });
     }
 
-    function renderList() {
+    function renderList(slideDir) {
       var allCount = state.items.length;
       var unreadCount = state.items.filter(function (it) { return !it.is_read; }).length;
       var allSpan = $('[data-notif-count="all"]', popover);
@@ -1369,8 +1436,17 @@ header('X-Content-Type-Options: nosniff');
       if (unreadSpan) unreadSpan.textContent = '(' + unreadCount + ')';
       if (markAllBtn) markAllBtn.disabled = unreadCount === 0;
       if (clearAllBtn) clearAllBtn.disabled = allCount === 0;
+      if (!slideDir && !popover.hidden) {
+        requestAnimationFrame(function () { positionTabPill(false); });
+      }
 
+      listEl.classList.remove('is-slide-right', 'is-slide-left');
       listEl.textContent = '';
+      if (slideDir && !reduceMotion) {
+        void listEl.offsetWidth;
+        listEl.classList.add(slideDir === 'left' ? 'is-slide-left' : 'is-slide-right');
+      }
+
       var visible = filteredItems();
       if (!visible.length) {
         var empty = document.createElement('div');
@@ -1521,17 +1597,55 @@ header('X-Content-Type-Options: nosniff');
     });
     if (closeBtn) closeBtn.addEventListener('click', function () { setOpen(false); });
 
-    tabButtons.forEach(function (btn) {
+    function activateTab(btn) {
+      if (!btn) return;
+      var nextTab = btn.getAttribute('data-notif-tab') || 'all';
+      if (nextTab === activeTab) {
+        positionTabPill(false);
+        return;
+      }
+      var prevIdx = tabButtons.findIndex(function (b) { return b.getAttribute('data-notif-tab') === activeTab; });
+      var nextIdx = tabButtons.indexOf(btn);
+      var dir = prevIdx !== -1 && nextIdx < prevIdx ? 'left' : 'right';
+
+      activeTab = nextTab;
+      tabButtons.forEach(function (b) {
+        var on = b === btn;
+        b.classList.toggle('is-active', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+      });
+      positionTabPill(true);
+      renderList(dir);
+    }
+
+    tabButtons.forEach(function (btn, idx) {
       btn.addEventListener('click', function () {
-        activeTab = btn.getAttribute('data-notif-tab') || 'all';
-        tabButtons.forEach(function (b) {
-          var on = b === btn;
-          b.classList.toggle('is-active', on);
-          b.setAttribute('aria-selected', on ? 'true' : 'false');
-        });
-        renderList();
+        activateTab(btn);
+      });
+      btn.addEventListener('keydown', function (e) {
+        var targetIdx = -1;
+        if (e.key === 'ArrowRight') targetIdx = (idx + 1) % tabButtons.length;
+        else if (e.key === 'ArrowLeft') targetIdx = (idx - 1 + tabButtons.length) % tabButtons.length;
+        else if (e.key === 'Home') targetIdx = 0;
+        else if (e.key === 'End') targetIdx = tabButtons.length - 1;
+        if (targetIdx !== -1) {
+          e.preventDefault();
+          var targetBtn = tabButtons[targetIdx];
+          activateTab(targetBtn);
+          targetBtn.focus();
+        }
       });
     });
+
+    if (tabsWrap && window.ResizeObserver) {
+      var nTabRo = new ResizeObserver(function () { positionTabPill(false); });
+      nTabRo.observe(tabsWrap);
+    } else {
+      window.addEventListener('resize', function () { positionTabPill(false); });
+    }
+    if (document.fonts && document.fonts.ready) {
+      document.fonts.ready.then(function () { positionTabPill(false); });
+    }
 
     if (markAllBtn) {
       markAllBtn.addEventListener('click', function () {
@@ -1982,7 +2096,10 @@ header('X-Content-Type-Options: nosniff');
     initPrint();
     initModernSelects();
     initAdminWorkspace();
+    portalPageModals();
     ensureLeaflet(initMaps);
+    var autoModal = $('.modal[data-modal-autoopen]');
+    if (autoModal) openModal(autoModal);
   }
 
   function skEl(cls) {
@@ -2149,6 +2266,7 @@ header('X-Content-Type-Options: nosniff');
           closeActiveSelect(false);
           $all('.modal.is-open').forEach(function (m) { m.classList.remove('is-open', 'is-mounted'); });
           document.body.classList.remove('has-modal');
+          $all('.modal[data-spa-modal]').forEach(function (m) { m.remove(); });
           var oldSos = document.getElementById('sos-modal');
           if (oldSos && oldSos.parentNode === document.body) oldSos.remove();
 
@@ -3128,6 +3246,8 @@ header('X-Content-Type-Options: nosniff');
 
       var lastSettingsBtn = null;
       var pillMoveTimer = null;
+      var activeInitBtn = $('.settings-nav-btn.is-active', settingsNav) || settingsNavBtns[0];
+      var currentSettingsTab = activeInitBtn ? (activeInitBtn.getAttribute('data-settings-tab') || 'all') : 'all';
 
       function positionSettingsPill(animate) {
         var activeBtn = $('.settings-nav-btn.is-active', settingsNav) || settingsNavBtns[0];
@@ -3165,14 +3285,20 @@ header('X-Content-Type-Options: nosniff');
       }
 
       function showSettingsTab(tab) {
+        var nextTab = tab || 'all';
+        if (nextTab === currentSettingsTab) return;
+        currentSettingsTab = nextTab;
+
         settingsNavBtns.forEach(function (b) {
-          b.classList.toggle('is-active', b.getAttribute('data-settings-tab') === tab);
+          var isOn = b.getAttribute('data-settings-tab') === nextTab;
+          b.classList.toggle('is-active', isOn);
+          b.setAttribute('aria-current', isOn ? 'true' : 'false');
         });
         positionSettingsPill(true);
 
         var visibleIdx = 0;
         settingsPanels.forEach(function (p) {
-          var show = tab === 'all' || p.getAttribute('data-settings-panel') === tab;
+          var show = nextTab === 'all' || p.getAttribute('data-settings-panel') === nextTab;
           p.hidden = !show;
           p.classList.remove('is-entering');
           if (show && !reduceMotion) {
@@ -3181,6 +3307,26 @@ header('X-Content-Type-Options: nosniff');
             p.classList.add('is-entering');
           }
         });
+
+        var settingsShell = $('.settings-shell', mainEl);
+        var scroller = $('.main-scroll');
+        if (settingsShell) {
+          if (scroller && window.innerWidth > 820) {
+            var shellTop = settingsShell.getBoundingClientRect().top - scroller.getBoundingClientRect().top + scroller.scrollTop;
+            var anchorTop = Math.max(0, Math.round(shellTop - 20));
+            if (scroller.scrollTop > anchorTop + 4) {
+              scroller.scrollTo({ top: anchorTop, behavior: reduceMotion ? 'auto' : 'smooth' });
+            }
+          } else {
+            var winTop = settingsShell.getBoundingClientRect().top + (window.pageYOffset || document.documentElement.scrollTop || 0);
+            var winAnchor = Math.max(0, Math.round(winTop - 72));
+            var curWinY = window.pageYOffset || document.documentElement.scrollTop || 0;
+            if (curWinY > winAnchor + 4) {
+              window.scrollTo({ top: winAnchor, behavior: reduceMotion ? 'auto' : 'smooth' });
+            }
+          }
+        }
+
         var sMapEl = document.getElementById('settings-map-picker');
         if (sMapEl && sMapEl._leafletMap) {
           setTimeout(function () { sMapEl._leafletMap.invalidateSize(); }, 80);
