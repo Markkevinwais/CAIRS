@@ -716,7 +716,7 @@ header('X-Content-Type-Options: nosniff');
     }
 
     function attachMapSearch(el, map, onSelect, placeholder) {
-      if (!el || !el.parentNode || el.parentNode.querySelector('.map-search-bar')) return;
+      if (!el || el.querySelector(':scope > .map-search-bar')) return;
 
       var bar = document.createElement('div');
       bar.className = 'map-search-bar';
@@ -729,13 +729,13 @@ header('X-Content-Type-Options: nosniff');
 
       var ic = document.createElement('span');
       ic.className = 'map-search-ic';
-      ic.appendChild(createSvgIcon('search', 15));
+      ic.appendChild(createSvgIcon('search', 14));
 
       var input = document.createElement('input');
       input.type = 'search';
       input.className = 'map-search-input';
       input.autocomplete = 'off';
-      input.placeholder = placeholder || 'Search street, barangay, landmark, or lat, lng...';
+      input.placeholder = placeholder || 'Search place or lat, lng...';
       input.setAttribute('aria-label', 'Search map location or coordinates');
 
       var clearBtn = document.createElement('button');
@@ -743,7 +743,7 @@ header('X-Content-Type-Options: nosniff');
       clearBtn.className = 'map-search-clear';
       clearBtn.setAttribute('aria-label', 'Clear map search');
       clearBtn.hidden = true;
-      clearBtn.appendChild(createSvgIcon('x', 14));
+      clearBtn.appendChild(createSvgIcon('x', 13));
 
       field.appendChild(ic);
       field.appendChild(input);
@@ -764,7 +764,15 @@ header('X-Content-Type-Options: nosniff');
 
       bar.appendChild(row);
       bar.appendChild(resultsEl);
-      el.parentNode.insertBefore(bar, el);
+      el.appendChild(bar);
+
+      if (window.L && L.DomEvent) {
+        L.DomEvent.disableClickPropagation(bar);
+        L.DomEvent.disableScrollPropagation(bar);
+      }
+      ['click', 'dblclick', 'mousedown', 'pointerdown', 'touchstart', 'wheel'].forEach(function (evName) {
+        bar.addEventListener(evName, function (ev) { ev.stopPropagation(); }, { passive: true });
+      });
 
       var debounceTimer = null;
       var activeCtrl = null;
@@ -1031,7 +1039,7 @@ header('X-Content-Type-Options: nosniff');
       if (markers.length) allMap.fitBounds(L.featureGroup(markers).getBounds().pad(0.2), { maxZoom: 16 });
       attachMapSearch(all, allMap, function (lat, lng) {
         allMap.setView([lat, lng], 17);
-      }, 'Jump incident map to a street, barangay, or lat, lng...');
+      }, 'Jump to place or lat, lng...');
     }
 
     // 10d. Admin Pin & Dispatch: click anywhere to drop/drag a dispatch pin + see existing incidents
@@ -1173,7 +1181,7 @@ header('X-Content-Type-Options: nosniff');
 
       attachMapSearch(settingsEl, sMap, function (lat, lng) {
         applySettingsCoords(lat, lng, true);
-      }, 'Search barangay, city, or paste lat, lng...');
+      }, 'Search place or lat, lng...');
 
       var sLocate = document.getElementById('settings-locate');
       if (sLocate) {

@@ -318,7 +318,7 @@ td a{font-weight:600}
 .timeline p{margin:5px 0 0;font-size:.9rem}
 
 /* 16. MAPS ---------------------------------------------------------------- */
-.map{position:relative;overflow:hidden;contain:layout paint;z-index:0;height:340px;border:1px solid var(--border);border-radius:12px;margin:6px 0 10px;background:#e8eef4}
+.map{position:relative;overflow:hidden;contain:layout paint;isolation:isolate;z-index:0;height:340px;border:1px solid var(--border);border-radius:12px;margin:6px 0 10px;background:#e8eef4}
 .map.leaflet-container{overflow:hidden;position:relative;-webkit-tap-highlight-color:transparent}
 .map .leaflet-pane,.map .leaflet-tile,.map .leaflet-marker-icon,.map .leaflet-marker-shadow,.map .leaflet-tile-container,.map .leaflet-pane>svg,.map .leaflet-pane>canvas,.map .leaflet-zoom-box{position:absolute;left:0;top:0}
 .map .leaflet-tile-pane{z-index:200}.map .leaflet-overlay-pane{z-index:400}.map .leaflet-shadow-pane{z-index:500}.map .leaflet-marker-pane{z-index:600}.map .leaflet-tooltip-pane{z-index:650}.map .leaflet-popup-pane{z-index:700}
@@ -330,7 +330,7 @@ td a{font-weight:600}
 .map .leaflet-top .leaflet-control{margin-top:10px}.map .leaflet-bottom .leaflet-control{margin-bottom:10px}
 .map .leaflet-left .leaflet-control{margin-left:10px}.map .leaflet-right .leaflet-control{margin-right:10px}
 .map .leaflet-control-zoom a{display:block;text-align:center;text-decoration:none}
-.map-card{padding:0;overflow:hidden;margin-bottom:20px}
+.map-card{position:relative;z-index:1;isolation:isolate;padding:0;overflow:hidden;margin-bottom:20px}
 .map-card .map{margin:0;border:0;border-radius:0}
 .card.map-card{padding:0}
 .map-head,.map-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:15px 20px}
@@ -1683,7 +1683,7 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 .setting-tag.is-on{background:var(--success-soft);border-color:#a7f3d0;color:#065f46}
 .setting-tag.is-warn{background:var(--warning-soft);border-color:#fde68a;color:#92400e}
 
-.settings-map-wrap{border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px}
+.settings-map-wrap{position:relative;z-index:1;isolation:isolate;border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:14px}
 .settings-map{height:270px;margin:0;border:0;border-radius:0}
 .settings-map-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;padding:10px 14px;border-top:1px solid var(--border);background:#f8fafc;font-size:.81rem;color:#1e293b}
 
@@ -1874,16 +1874,23 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 
 /* 30. MAP PLACE & COORDINATE SEARCH + LOCATING STATE -------------------- */
 .map-search-bar{
-  position:relative;
-  z-index:950;
-  padding:10px 16px;
-  border-bottom:1px solid var(--border);
-  background:#f8fafc;
+  position:absolute;
+  top:10px;
+  right:10px;
+  width:min(336px,calc(100% - 62px));
+  z-index:850;
+  padding:4px;
+  border:1px solid var(--border);
+  border-radius:11px;
+  background:rgba(255,255,255,.95);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  box-shadow:var(--shadow-md);
 }
 .map-search-row{
   display:flex;
   align-items:center;
-  gap:8px;
+  gap:5px;
 }
 .map-search-field{
   position:relative;
@@ -1894,7 +1901,7 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 }
 .map-search-ic{
   position:absolute;
-  left:11px;
+  left:9px;
   color:#334155;
   pointer-events:none;
   display:inline-flex;
@@ -1902,28 +1909,29 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 }
 .map-search-input{
   width:100%;
-  height:38px;
+  height:32px;
   margin:0!important;
-  padding:0 34px 0 34px!important;
-  border:1px solid var(--border);
-  border-radius:var(--radius-sm);
-  background:var(--surface);
+  padding:0 28px 0 30px!important;
+  border:1px solid transparent;
+  border-radius:7px;
+  background:#f8fafc;
   color:#0f172a;
-  font-size:.86rem;
+  font-size:.82rem;
   font-weight:500;
-  transition:border-color .15s,box-shadow .15s;
+  transition:border-color .15s,background .15s,box-shadow .15s;
 }
 .map-search-input::placeholder{color:#475569;opacity:1}
 .map-search-input:focus{
   outline:none;
+  background:var(--surface);
   border-color:var(--primary);
-  box-shadow:0 0 0 3px rgba(var(--primary-rgb),.14);
+  box-shadow:0 0 0 2px rgba(var(--primary-rgb),.14);
 }
 .map-search-clear{
   position:absolute;
-  right:6px;
-  width:26px;
-  height:26px;
+  right:4px;
+  width:24px;
+  height:24px;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -1935,14 +1943,14 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 }
 .map-search-clear:hover{background:#e2e8f0;color:#0f172a}
 .map-search-clear[hidden]{display:none}
-.map-search-btn{height:38px;white-space:nowrap;flex:none}
+.map-search-btn{height:32px;padding:0 11px;border-radius:7px;font-size:.8rem;white-space:nowrap;flex:none}
 .map-search-results{
   position:absolute;
-  left:16px;
-  right:16px;
-  top:calc(100% - 4px);
-  z-index:960;
-  max-height:240px;
+  left:0;
+  right:0;
+  top:calc(100% + 6px);
+  z-index:860;
+  max-height:200px;
   overflow-y:auto;
   border:1px solid var(--border);
   border-radius:11px;
@@ -1950,13 +1958,14 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
   box-shadow:var(--shadow-lg);
   padding:4px;
 }
+.settings-map .map-search-results{max-height:165px}
 .map-search-results[hidden]{display:none}
 .map-search-item{
   width:100%;
   display:flex;
   align-items:flex-start;
-  gap:10px;
-  padding:9px 11px;
+  gap:9px;
+  padding:8px 10px;
   border:0;
   border-radius:8px;
   background:transparent;
@@ -1967,9 +1976,9 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 }
 .map-search-item:hover,.map-search-item.is-active{background:#f1f5f9}
 .map-search-item-ic{
-  width:28px;
-  height:28px;
-  border-radius:8px;
+  width:26px;
+  height:26px;
+  border-radius:7px;
   background:#ecfdf5;
   color:var(--primary-dark);
   display:inline-flex;
@@ -1980,19 +1989,19 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 }
 .map-search-item-copy{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
 .map-search-item-title{
-  font-size:.86rem;
+  font-size:.83rem;
   font-weight:700;
   color:#0f172a;
   line-height:1.25;
 }
 .map-search-item-sub{
-  font-size:.76rem;
+  font-size:.74rem;
   color:#334155;
   line-height:1.3;
   overflow-wrap:anywhere;
 }
 .map-search-item-coords{
-  font-size:.73rem;
+  font-size:.71rem;
   font-weight:600;
   color:var(--primary-dark);
   font-variant-numeric:tabular-nums;
@@ -2000,8 +2009,8 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
   align-self:center;
 }
 .map-search-state{
-  padding:11px 12px;
-  font-size:.83rem;
+  padding:10px 12px;
+  font-size:.81rem;
   font-weight:500;
   color:#334155;
   text-align:center;
@@ -2010,7 +2019,6 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 .btn.is-locating svg{animation:spin .9s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 @media (max-width:560px){
-  .map-search-bar{padding:9px 12px}
-  .map-search-results{left:12px;right:12px}
+  .map-search-bar{width:calc(100% - 58px);top:8px;right:8px}
   .map-search-item-coords{display:none}
 }

@@ -70,6 +70,9 @@ $pageDesc = "{$site} - Community Assistance and Incident Reporting System for ba
 <meta property="og:title" content="<?= e($pageTitle) ?> | <?= e($site) ?>">
 <meta property="og:description" content="<?= e($pageDesc) ?>">
 <title><?= e($pageTitle) ?> | <?= e($site) ?></title>
+<link rel="icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/images/favicon.svg">
+<link rel="shortcut icon" type="image/svg+xml" href="<?= BASE_URL ?>/assets/images/favicon.svg">
+<link rel="apple-touch-icon" href="<?= BASE_URL ?>/assets/images/favicon.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
