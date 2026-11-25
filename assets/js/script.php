@@ -4120,7 +4120,7 @@ header('X-Content-Type-Options: nosniff');
         clearTimeout(hideTimer);
         return;
       }
-      var topbar = $('.topbar');
+      var topbar = $('.topbar') || $('.landing-nav');
       var topPad = 6;
       if (topbar) {
         var tbRect = topbar.getBoundingClientRect();
@@ -4160,6 +4160,17 @@ header('X-Content-Type-Options: nosniff');
     document.addEventListener('touchmove', function () { scheduleSync(true); }, { passive: true });
   }
 
+  function initLandingNav() {
+    var nav = $('.landing-nav');
+    if (!nav) return;
+    function sync() {
+      var y = window.scrollY || window.pageYOffset || 0;
+      nav.classList.toggle('is-scrolled', y > 8);
+    }
+    sync();
+    window.addEventListener('scroll', sync, { passive: true });
+  }
+
 
   /* START ---------------------------------------------------------------- */
   initSidebar();
@@ -4173,4 +4184,5 @@ header('X-Content-Type-Options: nosniff');
   initLivePoll();
   initSpaNavigation();
   initMobileOverlayScrollbar();
+  initLandingNav();
 })();
