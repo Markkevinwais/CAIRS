@@ -2134,6 +2134,20 @@ header('X-Content-Type-Options: nosniff');
     selectGlobalsBound = true;
 
     document.addEventListener('click', function (e) {
+      var lbl = e.target && e.target.closest ? e.target.closest('label') : null;
+      if (lbl && !(e.target.closest('.m-select'))) {
+        var ctrl = lbl.control || (lbl.getAttribute('for') ? document.getElementById(lbl.getAttribute('for')) : null);
+        if (ctrl && ctrl.tagName === 'SELECT' && ctrl.dataset && ctrl.dataset.msInit === '1') {
+          e.preventDefault();
+          var msWrap = ctrl.closest('.m-select');
+          var msTrigger = msWrap ? $('.m-select-trigger', msWrap) : null;
+          if (msTrigger) {
+            msTrigger.focus();
+            msTrigger.click();
+          }
+          return;
+        }
+      }
       if (!activeSelectCtx) return;
       if (activeSelectCtx.wrap.contains(e.target) || activeSelectCtx.menu.contains(e.target)) return;
       closeActiveSelect(false);
@@ -2358,6 +2372,8 @@ header('X-Content-Type-Options: nosniff');
         }
       });
 
+      select.addEventListener('mousedown', function (e) { e.preventDefault(); trigger.focus(); openMenu(); });
+      select.addEventListener('click', function (e) { e.preventDefault(); });
       select.addEventListener('change', syncTrigger);
       select.addEventListener('focus', function () { trigger.focus(); });
       select.addEventListener('invalid', function () { openMenu(); });
