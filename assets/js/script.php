@@ -551,13 +551,14 @@ header('X-Content-Type-Options: nosniff');
 
       el.textContent = (0).toFixed(decimals) + suffix;
       function step(time) {
+        if (el.dataset.staticLock === '1') return;
         if (!start) start = time;
         var progress = Math.min((time - start) / 900, 1);
         var eased = 1 - Math.pow(1 - progress, 3);
         el.textContent = (end * eased).toFixed(decimals) + suffix;
         if (progress < 1) requestAnimationFrame(step);
       }
-      setTimeout(function () { requestAnimationFrame(step); }, 250);
+      setTimeout(function () { if (el.dataset.staticLock !== '1') requestAnimationFrame(step); }, 250);
     });
   }
 
@@ -3466,6 +3467,98 @@ header('X-Content-Type-Options: nosniff');
           lEl.value = btn.getAttribute('data-level') || 'info';
           lEl.dispatchEvent(new Event('change'));
         }
+      });
+    });
+
+    $all('form[data-ann-toggle]', mainEl).forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        if (!window.fetch) return;
+        e.preventDefault();
+        if (form.dataset.busy === '1') return;
+
+        var btn = $('button[type="submit"]', form);
+        var card = form.closest ? form.closest('article.ann') : null;
+        var tag = card ? $('.ann-state-tag', card) : null;
+        var origText = btn ? btn.textContent : '';
+
+        form.dataset.busy = '1';
+        if (btn) {
+          btn.disabled = true;
+          btn.setAttribute('aria-busy', 'true');
+        }
+
+        fetch(form.getAttribute('action') || window.location.pathname, {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: {
+            'Accept': 'application/json',
+            'X-Requested-With': 'fetch',
+            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+          },
+          body: new URLSearchParams(new FormData(form))
+        })
+          .then(function (r) {
+            return r.text().then(function (txt) {
+              var data = null;
+              try { data = JSON.parse(txt); } catch (_) {}
+              return { ok: r.ok, status: r.status, data: data };
+            });
+          })
+          .then(function (res) {
+            if (!res.ok || !res.data || !res.data.ok) {
+              var errMsg = (res.data && res.data.error) || 'Could not update announcement visibility.';
+              showToast(errMsg, 'error');
+              if (res.status === 419) setTimeout(function () { window.location.reload(); }, 900);
+              return;
+            }
+            var isLive = !!res.data.is_active;
+            if (card) card.classList.toggle('is-off', !isLive);
+            if (tag) {
+              tag.classList.toggle('is-hidden', !isLive);
+              tag.textContent = isLive ? 'Live' : 'Hidden';
+            }
+            if (btn) btn.textContent = isLive ? 'Hide' : 'Show again';
+
+            var statsEl = document.getElementById('ann-stats');
+            if (statsEl && res.data.counts) {
+              var cards = $all('.stat', statsEl);
+              var map = [
+                ['total', null],
+                ['live', null],
+                ['hidden', 'tone-warning', 'tone-muted'],
+                ['critical', 'tone-danger', 'tone-muted']
+              ];
+              map.forEach(function (spec, idx) {
+                var sc = cards[idx];
+                if (!sc) return;
+                var val = res.data.counts[spec[0]];
+                if (typeof val === 'number') {
+                  var b = $('b', sc);
+                  if (b) {
+                    b.dataset.staticLock = '1';
+                    b.textContent = String(val);
+                  }
+                  if (spec[1] && spec[2]) {
+                    sc.classList.toggle(spec[1], val > 0);
+                    sc.classList.toggle(spec[2], val <= 0);
+                  }
+                }
+              });
+            }
+
+            showToast(res.data.message || 'Announcement visibility updated.');
+          })
+          .catch(function () {
+            if (btn && origText) btn.textContent = origText;
+            showToast('Network error updating announcement visibility.', 'error');
+          })
+          .finally(function () {
+            form.dataset.busy = '0';
+            if (btn) {
+              btn.disabled = false;
+              btn.removeAttribute('aria-busy');
+            }
+          });
       });
     });
 

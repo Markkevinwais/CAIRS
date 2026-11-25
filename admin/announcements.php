@@ -10,13 +10,56 @@ $errors = [];
 $old = ['title' => '', 'body' => '', 'level' => 'info'];
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $isJson = strpos((string) ($_SERVER['HTTP_ACCEPT'] ?? ''), 'application/json') !== false
+        || strtolower((string) ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '')) === 'fetch';
+
+    if ($isJson && !csrfVerify($_POST['csrf'] ?? null)) {
+        http_response_code(419);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'Session expired. Refresh the page and try again.']);
+        exit;
+    }
     csrfCheckOrDie();
     $action = (string) ($_POST['action'] ?? '');
 
     if ($action === 'toggle') {
         $id = (int) ($_POST['id'] ?? 0);
-        $stmt = pdo()->prepare('UPDATE announcements SET is_active = 1 - is_active WHERE id = ?');
-        $stmt->execute([$id]);
+        if ($id > 0) {
+            $stmt = pdo()->prepare('UPDATE announcements SET is_active = 1 - is_active WHERE id = ?');
+            $stmt->execute([$id]);
+        }
+        if ($isJson) {
+            $rowStmt = pdo()->prepare('SELECT is_active FROM announcements WHERE id = ? LIMIT 1');
+            $rowStmt->execute([$id]);
+            $row = $rowStmt->fetch();
+            header('Content-Type: application/json; charset=utf-8');
+            if (!$row) {
+                http_response_code(404);
+                echo json_encode(['ok' => false, 'error' => 'Announcement not found.']);
+                exit;
+            }
+            $counts = pdo()->query(
+                "SELECT COUNT(*) AS total,
+                        SUM(CASE WHEN is_active = 1 THEN 1 ELSE 0 END) AS live,
+                        SUM(CASE WHEN is_active = 0 THEN 1 ELSE 0 END) AS hidden,
+                        SUM(CASE WHEN level = 'critical' THEN 1 ELSE 0 END) AS critical
+                 FROM announcements"
+            )->fetch() ?: [];
+            $isActiveNow = !empty($row['is_active']);
+            echo json_encode([
+                'ok' => true,
+                'id' => $id,
+                'is_active' => $isActiveNow ? 1 : 0,
+                'message' => $isActiveNow ? 'Announcement is now live on dashboards.' : 'Announcement hidden from dashboards.',
+                'counts' => [
+                    'total' => (int) ($counts['total'] ?? 0),
+                    'live' => (int) ($counts['live'] ?? 0),
+                    'hidden' => (int) ($counts['hidden'] ?? 0),
+                    'critical' => (int) ($counts['critical'] ?? 0),
+                ],
+            ]);
+            exit;
+        }
         setFlash('Announcement visibility updated.');
         redirectTo('admin/announcements.php');
     }
@@ -110,7 +153,7 @@ require __DIR__ . '/../includes/header.php';
   </div>
 </div>
 
-<div class="grid grid-4">
+<div class="grid grid-4" id="ann-stats">
   <?= statCard('megaphone', 'Total notices', $totalCount, 'Published advisories', 'primary') ?>
   <?= statCard('check', 'Live on dashboards', $liveCount, 'Visible to community members', 'success') ?>
   <?= statCard('eye', 'Hidden notices', $hiddenCount, 'Archived or paused', $hiddenCount > 0 ? 'warning' : 'muted') ?>
@@ -159,7 +202,7 @@ require __DIR__ . '/../includes/header.php';
         $isActive = !empty($a['is_active']);
         $lvl = (string) ($a['level'] ?? 'info');
       ?>
-      <article class="ann ann-<?= e($lvl) ?><?= $isActive ? '' : ' is-off' ?>">
+      <article class="ann ann-<?= e($lvl) ?><?= $isActive ? '' : ' is-off' ?>" data-ann-id="<?= (int) $a['id'] ?>">
         <span class="ann-ic"><?= icon($lvl === 'critical' ? 'siren' : 'megaphone', 20) ?></span>
         <div style="flex:1;min-width:0">
           <div class="ann-card-head">
@@ -186,7 +229,7 @@ require __DIR__ . '/../includes/header.php';
                     data-body="<?= e($a['body']) ?>">
               <?= icon('edit', 14) ?> Edit
             </button>
-            <form method="post"><?= csrfField() ?>
+            <form method="post" data-ann-toggle><?= csrfField() ?>
               <input type="hidden" name="action" value="toggle"><input type="hidden" name="id" value="<?= (int) $a['id'] ?>">
               <button class="btn ghost small" type="submit"><?= $isActive ? 'Hide' : 'Show again' ?></button>
             </form>
