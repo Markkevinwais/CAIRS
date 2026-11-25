@@ -1,0 +1,4 @@
+.env
+assets/uploads/*
+!assets/uploads/.gitkeep
+public/assets/aistudio/
