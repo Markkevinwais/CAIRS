@@ -157,7 +157,7 @@ $pageDesc = "{$site} - Community Assistance and Incident Reporting System for ba
 </aside>
 <div class="main">
   <header class="topbar">
-    <button class="nav-toggle" type="button" aria-label="Toggle side panel" aria-controls="sidebar" aria-expanded="false" title="Toggle side panel"><?= icon('panel-open', 19) ?></button>
+    <button class="nav-toggle" type="button" aria-label="Open navigation menu" aria-controls="sidebar" aria-expanded="false" title="Open navigation menu"><?= icon('menu', 20) ?></button>
     <nav class="crumbs" aria-label="Breadcrumb">
       <a class="crumb-root" href="<?= BASE_URL ?>/<?= homeFor($u['role']) ?>">Home</a><span class="sep">/</span>
       <span><?= e(ucfirst($u['role'])) ?></span><span class="sep">/</span><strong><?= e($pageTitle) ?></strong>

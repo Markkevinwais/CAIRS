@@ -3450,6 +3450,171 @@ header('X-Content-Type-Options: nosniff');
       secNewPw.addEventListener('input', syncSecPw);
       syncSecPw();
     }
+
+    // 14g. Directory Table / Card Grid view switcher (Volunteers & Residents)
+    $all('[data-dir-switch]', mainEl).forEach(function (sw) {
+      var key = sw.getAttribute('data-dir-switch') || 'default';
+      var target = $('[data-dir-view="' + key + '"]', mainEl);
+      var btns = $all('[data-view-mode]', sw);
+      if (!target || !btns.length) return;
+
+      var pill = $('.view-switch-pill', sw);
+      if (!pill) {
+        pill = document.createElement('span');
+        pill.className = 'view-switch-pill';
+        pill.setAttribute('aria-hidden', 'true');
+        sw.insertBefore(pill, sw.firstChild);
+      }
+      sw.classList.add('has-pill');
+
+      var storageKey = 'cairs_dir_view_' + key;
+      var savedMode = 'table';
+      try {
+        var raw = localStorage.getItem(storageKey);
+        if (raw === 'grid' || raw === 'table') savedMode = raw;
+      } catch (_) {}
+
+      var lastRect = null;
+      function positionPill(animate) {
+        var active = $('.view-switch-btn.is-active', sw) || btns[0];
+        if (!active || !active.offsetWidth || !active.offsetHeight) {
+          pill.classList.remove('is-ready');
+          lastRect = null;
+          return;
+        }
+        var x = active.offsetLeft;
+        var y = active.offsetTop;
+        var w = active.offsetWidth;
+        var h = active.offsetHeight;
+        if (lastRect && lastRect.x === x && lastRect.y === y && lastRect.w === w && lastRect.h === h && pill.classList.contains('is-ready')) {
+          return;
+        }
+        lastRect = { x: x, y: y, w: w, h: h };
+        if (!animate || reduceMotion || !pill.classList.contains('is-ready')) {
+          var prevTr = pill.style.transition;
+          pill.style.transition = 'none';
+          pill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+          pill.style.width = w + 'px';
+          pill.style.height = h + 'px';
+          pill.offsetHeight;
+          pill.style.transition = prevTr || '';
+          pill.classList.add('is-ready');
+        } else {
+          pill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+          pill.style.width = w + 'px';
+          pill.style.height = h + 'px';
+        }
+      }
+
+      function applyView(mode, animate) {
+        var next = mode === 'grid' ? 'grid' : 'table';
+        btns.forEach(function (b) {
+          var on = b.getAttribute('data-view-mode') === next;
+          b.classList.toggle('is-active', on);
+          b.setAttribute('aria-pressed', on ? 'true' : 'false');
+        });
+        target.classList.toggle('is-card-grid', next === 'grid');
+        if (animate && !reduceMotion) {
+          target.classList.remove('is-view-entering');
+          void target.offsetWidth;
+          target.classList.add('is-view-entering');
+        }
+        positionPill(animate);
+        try { localStorage.setItem(storageKey, next); } catch (_) {}
+      }
+
+      btns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var mode = btn.getAttribute('data-view-mode') || 'table';
+          if (btn.classList.contains('is-active')) {
+            positionPill(false);
+            return;
+          }
+          applyView(mode, true);
+        });
+      });
+
+      if (window.ResizeObserver) {
+        var ro = new ResizeObserver(function () { positionPill(false); });
+        ro.observe(sw);
+      } else {
+        window.addEventListener('resize', function () { positionPill(false); });
+      }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function () { positionPill(false); });
+      }
+
+      applyView(savedMode, false);
+      requestAnimationFrame(function () { positionPill(false); });
+    });
+  }
+
+
+  /* 15. MOBILE AUTO-HIDING OVERLAY SCROLLBAR --------------------------- */
+  function initMobileOverlayScrollbar() {
+    if (!document.body) return;
+    var thumb = $('.mobile-scroll-thumb');
+    if (!thumb) {
+      thumb = document.createElement('div');
+      thumb.className = 'mobile-scroll-thumb';
+      thumb.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(thumb);
+    }
+    var hideTimer = null;
+    var rafPending = false;
+
+    function syncThumb(show) {
+      if (window.innerWidth > 820 || document.body.classList.contains('nav-open') || document.body.classList.contains('has-modal')) {
+        thumb.classList.remove('is-visible');
+        clearTimeout(hideTimer);
+        return;
+      }
+      var docEl = document.documentElement;
+      var vh = window.innerHeight || docEl.clientHeight || 0;
+      var sh = Math.max(docEl.scrollHeight || 0, document.body.scrollHeight || 0);
+      if (sh <= vh + 4) {
+        thumb.classList.remove('is-visible');
+        clearTimeout(hideTimer);
+        return;
+      }
+      var topbar = $('.topbar');
+      var topPad = 6;
+      if (topbar) {
+        var tbRect = topbar.getBoundingClientRect();
+        if (tbRect.height > 0 && tbRect.bottom > 0) {
+          topPad = Math.max(6, Math.round(tbRect.bottom + 4));
+        }
+      }
+      var botPad = 6;
+      var trackH = Math.max(40, vh - topPad - botPad);
+      var thumbH = Math.min(trackH, Math.max(36, Math.round((vh / sh) * trackH)));
+      var maxScroll = Math.max(1, sh - vh);
+      var ratio = Math.min(1, Math.max(0, (window.scrollY || window.pageYOffset || 0) / maxScroll));
+      var y = Math.round(topPad + ratio * (trackH - thumbH));
+
+      thumb.style.height = thumbH + 'px';
+      thumb.style.transform = 'translate3d(0,' + y + 'px,0)';
+      if (show) {
+        thumb.classList.add('is-visible');
+        clearTimeout(hideTimer);
+        hideTimer = setTimeout(function () {
+          thumb.classList.remove('is-visible');
+        }, 950);
+      }
+    }
+
+    function scheduleSync(show) {
+      if (rafPending) return;
+      rafPending = true;
+      requestAnimationFrame(function () {
+        rafPending = false;
+        syncThumb(show);
+      });
+    }
+
+    window.addEventListener('scroll', function () { scheduleSync(true); }, { passive: true });
+    window.addEventListener('resize', function () { scheduleSync(false); }, { passive: true });
+    document.addEventListener('touchmove', function () { scheduleSync(true); }, { passive: true });
   }
 
 
@@ -3464,4 +3629,5 @@ header('X-Content-Type-Options: nosniff');
   initNotificationPopover();
   initLivePoll();
   initSpaNavigation();
+  initMobileOverlayScrollbar();
 })();

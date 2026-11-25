@@ -178,10 +178,16 @@ require __DIR__ . '/../includes/header.php';
   </div>
   <button class="btn" type="submit">Filter</button>
   <?php if ($hasFilters): ?><a class="btn ghost" href="residents.php">Reset</a><?php endif; ?>
-  <span class="filters-count"><?= count($rows) ?> of <?= $totalCount ?> shown</span>
+  <div class="filters-end">
+    <span class="filters-count"><?= count($rows) ?> of <?= $totalCount ?> shown</span>
+    <div class="view-switch" role="group" aria-label="Layout view" data-dir-switch="residents">
+      <button type="button" class="view-switch-btn is-active" data-view-mode="table" aria-pressed="true"><?= icon('list', 14) ?><span>Table</span></button>
+      <button type="button" class="view-switch-btn" data-view-mode="grid" aria-pressed="false"><?= icon('grid', 14) ?><span>Cards</span></button>
+    </div>
+  </div>
 </form>
 
-<div class="card tablewrap<?= $rows ? ' has-mobile-cards' : '' ?>">
+<div class="card tablewrap<?= $rows ? ' has-mobile-cards' : '' ?>" data-dir-view="residents">
 <?php if (!$rows): ?>
   <div class="empty-state">
     <span class="empty-state-ic"><?= icon('users', 22) ?></span>

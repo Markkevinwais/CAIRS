@@ -118,7 +118,7 @@ require __DIR__ . '/../includes/header.php';
 </div>
 
 <form class="filters" method="get">
-  <input class="filter-search" name="q" placeholder="Search announcement headline or message..." value="<?= e($q) ?>">
+  <input class="filter-search" name="q" placeholder="Search headline, message, or author..." value="<?= e($q) ?>">
   <div class="filter-field">
     <select name="level">
       <option value="all" <?= $levelFilter === 'all' ? 'selected' : '' ?>>All severities</option>

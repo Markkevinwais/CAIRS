@@ -171,7 +171,7 @@ require __DIR__ . '/../includes/header.php';
 </div>
 
 <form class="filters" method="get">
-  <input class="filter-search" name="q" placeholder="Search responder name, email, phone, or area..." value="<?= e($q) ?>">
+  <input class="filter-search" name="q" placeholder="Search name, email, phone, or area..." value="<?= e($q) ?>">
   <div class="filter-field">
     <select name="status">
       <option value="all" <?= $statusFilter === 'all' ? 'selected' : '' ?>>All statuses</option>
@@ -188,10 +188,16 @@ require __DIR__ . '/../includes/header.php';
   </div>
   <button class="btn" type="submit">Filter</button>
   <?php if ($hasFilters): ?><a class="btn ghost" href="volunteers.php">Reset</a><?php endif; ?>
-  <span class="filters-count"><?= count($rows) ?> of <?= $totalVols ?> shown</span>
+  <div class="filters-end">
+    <span class="filters-count"><?= count($rows) ?> of <?= $totalVols ?> shown</span>
+    <div class="view-switch" role="group" aria-label="Layout view" data-dir-switch="volunteers">
+      <button type="button" class="view-switch-btn is-active" data-view-mode="table" aria-pressed="true"><?= icon('list', 14) ?><span>Table</span></button>
+      <button type="button" class="view-switch-btn" data-view-mode="grid" aria-pressed="false"><?= icon('grid', 14) ?><span>Cards</span></button>
+    </div>
+  </div>
 </form>
 
-<div class="card tablewrap<?= $rows ? ' has-mobile-cards' : '' ?>">
+<div class="card tablewrap<?= $rows ? ' has-mobile-cards' : '' ?>" data-dir-view="volunteers">
 <?php if (!$rows): ?>
   <div class="empty-state">
     <span class="empty-state-ic"><?= icon('shield', 22) ?></span>
