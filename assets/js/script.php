@@ -3109,27 +3109,104 @@ header('X-Content-Type-Options: nosniff');
       syncCatPrio();
     }
 
-    // 14f. Settings workspace tabs, live hotline preview, SMS counter, password strength
+    // 14f. Settings workspace tabs, animated nav pill, live hotline preview, SMS counter, password strength
+    var settingsNav = $('.settings-nav', mainEl);
     var settingsNavBtns = $all('.settings-nav-btn[data-settings-tab]', mainEl);
     var settingsPanels = $all('[data-settings-panel]', mainEl);
-    if (settingsNavBtns.length && settingsPanels.length) {
+    if (settingsNav && settingsNavBtns.length && settingsPanels.length) {
+      var settingsPill = $('.settings-nav-pill', settingsNav);
+      if (!settingsPill) {
+        settingsPill = document.createElement('span');
+        settingsPill.className = 'settings-nav-pill';
+        settingsPill.setAttribute('aria-hidden', 'true');
+        settingsNav.insertBefore(settingsPill, settingsNav.firstChild);
+      }
+      settingsNav.classList.add('has-pill');
+      settingsNavBtns.forEach(function (b, idx) {
+        b.style.setProperty('--snav-idx', String(idx));
+      });
+
+      var lastSettingsBtn = null;
+      var pillMoveTimer = null;
+
+      function positionSettingsPill(animate) {
+        var activeBtn = $('.settings-nav-btn.is-active', settingsNav) || settingsNavBtns[0];
+        if (!activeBtn || activeBtn.offsetHeight === 0 || activeBtn.offsetWidth === 0) {
+          settingsPill.classList.remove('is-ready');
+          return;
+        }
+        var x = activeBtn.offsetLeft;
+        var y = activeBtn.offsetTop;
+        var w = activeBtn.offsetWidth;
+        var h = activeBtn.offsetHeight;
+
+        if (!animate || reduceMotion || !settingsPill.classList.contains('is-ready')) {
+          var prevTr = settingsPill.style.transition;
+          settingsPill.style.transition = 'none';
+          settingsPill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+          settingsPill.style.width = w + 'px';
+          settingsPill.style.height = h + 'px';
+          settingsPill.offsetHeight;
+          settingsPill.style.transition = prevTr || '';
+          settingsPill.classList.add('is-ready');
+        } else {
+          if (lastSettingsBtn && lastSettingsBtn !== activeBtn) {
+            settingsPill.classList.remove('is-moving');
+            settingsPill.offsetWidth;
+            settingsPill.classList.add('is-moving');
+            clearTimeout(pillMoveTimer);
+            pillMoveTimer = setTimeout(function () { settingsPill.classList.remove('is-moving'); }, 340);
+          }
+          settingsPill.style.transform = 'translate3d(' + x + 'px,' + y + 'px,0)';
+          settingsPill.style.width = w + 'px';
+          settingsPill.style.height = h + 'px';
+        }
+        lastSettingsBtn = activeBtn;
+      }
+
       function showSettingsTab(tab) {
         settingsNavBtns.forEach(function (b) {
           b.classList.toggle('is-active', b.getAttribute('data-settings-tab') === tab);
         });
+        positionSettingsPill(true);
+
+        var visibleIdx = 0;
         settingsPanels.forEach(function (p) {
-          p.hidden = tab !== 'all' && p.getAttribute('data-settings-panel') !== tab;
+          var show = tab === 'all' || p.getAttribute('data-settings-panel') === tab;
+          p.hidden = !show;
+          p.classList.remove('is-entering');
+          if (show && !reduceMotion) {
+            p.style.setProperty('--spanel-idx', String(visibleIdx++));
+            p.offsetWidth;
+            p.classList.add('is-entering');
+          }
         });
         var sMapEl = document.getElementById('settings-map-picker');
         if (sMapEl && sMapEl._leafletMap) {
           setTimeout(function () { sMapEl._leafletMap.invalidateSize(); }, 80);
         }
       }
+
       settingsNavBtns.forEach(function (btn) {
         btn.addEventListener('click', function () {
           showSettingsTab(btn.getAttribute('data-settings-tab') || 'all');
         });
       });
+
+      if (!reduceMotion) {
+        settingsNav.classList.add('is-revealing');
+        setTimeout(function () { settingsNav.classList.remove('is-revealing'); }, 450);
+      }
+      requestAnimationFrame(function () { positionSettingsPill(false); });
+      if (window.ResizeObserver) {
+        var sNavRo = new ResizeObserver(function () { positionSettingsPill(false); });
+        sNavRo.observe(settingsNav);
+      } else {
+        window.addEventListener('resize', function () { positionSettingsPill(false); });
+      }
+      if (document.fonts && document.fonts.ready) {
+        document.fonts.ready.then(function () { positionSettingsPill(false); });
+      }
     }
 
     var hotPreview = document.getElementById('hotline-live-preview');

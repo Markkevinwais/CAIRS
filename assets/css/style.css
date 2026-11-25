@@ -1658,18 +1658,58 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 
 /* Settings workspace shell, section nav, map picker & hotline preview */
 .settings-shell{display:grid;grid-template-columns:236px minmax(0,1fr);gap:20px;align-items:start}
-.settings-nav{position:sticky;top:20px;display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-sm)}
-.settings-nav-title{padding:6px 10px 8px;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#334155}
-.settings-nav-btn{display:flex;align-items:center;gap:10px;width:100%;padding:9px 11px;border:1px solid transparent;border-radius:9px;background:transparent;color:#1e293b;font:inherit;font-size:.87rem;font-weight:600;text-align:left;cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease)}
-.settings-nav-btn:hover{background:var(--surface-hover);color:#0f172a}
+.settings-nav{position:sticky;top:20px;isolation:isolate;display:flex;flex-direction:column;gap:4px;padding:10px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-sm)}
+.settings-nav-pill{
+  position:absolute;
+  left:0;
+  top:0;
+  z-index:0;
+  border-radius:9px;
+  background:var(--primary-light);
+  border:1px solid rgba(var(--primary-rgb),.28);
+  box-shadow:0 2px 8px -2px rgba(var(--primary-rgb),.18);
+  opacity:0;
+  pointer-events:none;
+  transition:transform .28s cubic-bezier(.16,1,.3,1),width .24s cubic-bezier(.16,1,.3,1),height .24s cubic-bezier(.16,1,.3,1),opacity .18s var(--ease);
+  will-change:transform,width,height;
+}
+.settings-nav-pill.is-ready{opacity:1}
+.settings-nav-pill::before{
+  content:'';
+  position:absolute;
+  left:0;
+  top:22%;
+  bottom:22%;
+  width:3px;
+  border-radius:0 4px 4px 0;
+  background:var(--primary);
+  transition:top .22s var(--ease),bottom .22s var(--ease);
+}
+.settings-nav-pill.is-moving::before{top:12%;bottom:12%}
+.settings-nav-title{position:relative;z-index:1;padding:6px 10px 8px;font-size:.72rem;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#334155}
+.settings-nav-btn{position:relative;z-index:1;display:flex;align-items:center;gap:10px;width:100%;padding:9px 11px;border:1px solid transparent;border-radius:9px;background:transparent;color:#1e293b;font:inherit;font-size:.87rem;font-weight:600;text-align:left;cursor:pointer;transition:background .15s var(--ease),color .15s var(--ease),border-color .15s var(--ease),transform .18s var(--ease)}
+.settings-nav-btn:hover{background:rgba(15,23,42,.04);color:#0f172a}
+.settings-nav-btn:active{transform:scale(.985)}
 .settings-nav-btn.is-active{background:var(--primary-light);border-color:rgba(var(--primary-rgb),.25);color:var(--primary-dark)}
-.settings-nav-btn .icon{flex:none;color:currentColor}
-.settings-nav-meta{margin-top:8px;padding:10px 11px 4px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
+.settings-nav.has-pill .settings-nav-btn.is-active{background:transparent;border-color:transparent;color:var(--primary-dark)}
+.settings-nav-btn .icon{flex:none;color:currentColor;transition:transform .2s cubic-bezier(.16,1,.3,1)}
+.settings-nav-btn:hover .icon,.settings-nav-btn.is-active .icon{transform:scale(1.08)}
+.settings-nav.is-revealing .settings-nav-btn{animation:settings-nav-in .32s cubic-bezier(.16,1,.3,1) calc(var(--snav-idx,0) * 32ms) both}
+@keyframes settings-nav-in{
+  from{opacity:0;transform:translateX(-8px)}
+  to{opacity:1;transform:none}
+}
+.settings-nav-meta{position:relative;z-index:1;margin-top:8px;padding:10px 11px 4px;border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px}
 .settings-nav-meta strong{font-size:.82rem;color:#0f172a}
 .settings-nav-meta span{font-size:.77rem;color:#334155;line-height:1.4}
 .settings-panels{display:flex;flex-direction:column;gap:20px;min-width:0}
 .setting-card{margin-bottom:0;padding:0;overflow:hidden}
 .setting-card[hidden]{display:none}
+.setting-card.is-entering{animation:setting-panel-in .24s cubic-bezier(.16,1,.3,1) calc(var(--spanel-idx,0) * 35ms) both}
+@keyframes setting-panel-in{
+  from{opacity:0;transform:translateY(8px)}
+  to{opacity:1;transform:none}
+}
 .setting-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;flex-wrap:wrap;padding:18px 22px;border-bottom:1px solid var(--border);background:#f8fafc}
 .setting-head-title{display:flex;align-items:flex-start;gap:12px;min-width:0}
 .setting-head-ic{display:grid;place-items:center;width:38px;height:38px;flex:none;border-radius:10px;background:var(--primary-light);color:var(--primary-dark)}
@@ -1698,6 +1738,8 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
   .sticky-card{position:static}
   .settings-shell{grid-template-columns:1fr}
   .settings-nav{position:static;flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px;padding:8px}
+  .settings-nav-pill::before{left:20%;right:20%;top:auto;bottom:0;width:auto;height:2.5px;border-radius:4px 4px 0 0}
+  .settings-nav-pill.is-moving::before{top:auto;bottom:0}
   .settings-nav-title,.settings-nav-meta{display:none}
   .settings-nav-btn{width:auto;flex:1 1 auto;justify-content:center;padding:8px 12px}
 }
@@ -1710,6 +1752,10 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 @media (max-width:560px){
   .settings-map{height:230px!important}
   .row-actions{justify-content:flex-start}
+}
+@media (prefers-reduced-motion:reduce){
+  .settings-nav-pill,.settings-nav-btn,.settings-nav-btn .icon{transition:none!important}
+  .settings-nav.is-revealing .settings-nav-btn,.setting-card.is-entering{animation:none!important}
 }
 
 /* 29. SKELETON LOADERS & NAVIGATION PROGRESS BAR ------------------------- */
