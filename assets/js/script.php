@@ -2213,7 +2213,9 @@ header('X-Content-Type-Options: nosniff');
       function buildMenu() {
         var menu = document.createElement('div');
         menu.className = 'm-select-menu';
-        menu.setAttribute('role', 'listbox');
+        var list = document.createElement('div');
+        list.className = 'm-select-list';
+        list.setAttribute('role', 'listbox');
         var buttons = [];
 
         Array.prototype.forEach.call(select.options, function (opt, idx) {
@@ -2251,28 +2253,36 @@ header('X-Content-Type-Options: nosniff');
             closeActiveSelect(true);
             if (changed) select.dispatchEvent(new Event('change', { bubbles: true }));
           });
-          menu.appendChild(btn);
+          list.appendChild(btn);
           buttons.push(btn);
         });
-        return { menu: menu, buttons: buttons };
+        menu.appendChild(list);
+        return { menu: menu, list: list, buttons: buttons };
       }
 
-      function positionMenu(menu) {
+      function positionMenu(menu, list) {
         var r = trigger.getBoundingClientRect();
         var vw = window.innerWidth;
         var vh = window.innerHeight;
         var minW = Math.max(r.width, 196);
-        var maxW = Math.min(vw - 24, Math.max(r.width + 36, 300));
+        var maxW = Math.min(vw - 24, Math.max(r.width + 52, 320));
         menu.style.minWidth = minW + 'px';
         menu.style.maxWidth = maxW + 'px';
 
         var spaceBelow = vh - r.bottom - 12;
         var spaceAbove = r.top - 12;
         menu.style.maxHeight = '300px';
+        list.style.maxHeight = '284px';
         var naturalH = menu.scrollHeight || 220;
         var openUp = spaceBelow < Math.min(naturalH, 190) && spaceAbove > spaceBelow;
         var avail = Math.max(120, Math.min(300, openUp ? spaceAbove : spaceBelow));
         menu.style.maxHeight = avail + 'px';
+        list.style.maxHeight = Math.max(96, avail - 16) + 'px';
+        var needsScroll = list.scrollHeight > list.clientHeight + 1;
+        list.classList.toggle('has-scroll', needsScroll);
+        if (needsScroll) {
+          menu.style.minWidth = Math.min(maxW, minW + 18) + 'px';
+        }
 
         var renderedH = Math.min(naturalH, avail);
         var renderedW = menu.offsetWidth || minW;
@@ -2303,10 +2313,10 @@ header('X-Content-Type-Options: nosniff');
 
         var built = buildMenu();
         document.body.appendChild(built.menu);
-        positionMenu(built.menu);
+        positionMenu(built.menu, built.list);
         wrap.classList.add('is-open');
         trigger.setAttribute('aria-expanded', 'true');
-        activeSelectCtx = { wrap: wrap, trigger: trigger, menu: built.menu, buttons: built.buttons };
+        activeSelectCtx = { wrap: wrap, trigger: trigger, menu: built.menu, list: built.list, buttons: built.buttons };
 
         var targetBtn = built.buttons[typeof focusIdx === 'number' ? focusIdx : Math.max(0, select.selectedIndex)];
         if (targetBtn) {

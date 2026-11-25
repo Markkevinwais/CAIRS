@@ -1606,18 +1606,50 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 .m-select-menu{
   position:fixed;
   z-index:260;
+  display:flex;
+  flex-direction:column;
   max-width:calc(100vw - 16px);
-  padding:6px;
+  padding:7px;
   border:1px solid var(--border);
   border-radius:14px;
   background:var(--surface);
   box-shadow:var(--shadow-lg);
-  overflow-y:auto;
-  overflow-x:hidden;
-  scrollbar-width:thin;
-  scrollbar-color:#94a3b8 #f1f5f9;
+  overflow:hidden;
   transform-origin:top center;
   animation:msel-in .18s cubic-bezier(.22,1,.36,1);
+}
+.m-select-list{
+  flex:1;
+  min-height:0;
+  overflow-y:auto;
+  overflow-x:hidden;
+  scrollbar-width:auto;
+  scrollbar-color:auto;
+}
+@supports (-moz-appearance:none){
+  .m-select-list{
+    scrollbar-width:thin;
+    scrollbar-color:rgba(var(--primary-rgb),.82) #ffffff;
+  }
+}
+.m-select-list.has-scroll{padding-right:6px}
+.m-select-list::-webkit-scrollbar{width:12px}
+.m-select-list::-webkit-scrollbar-button{display:none;width:0;height:0}
+.m-select-list::-webkit-scrollbar-track{
+  background:#ffffff;
+  border:1px solid #cbd5e1;
+  border-radius:999px;
+}
+.m-select-list::-webkit-scrollbar-thumb{
+  background:rgba(var(--primary-rgb),.82);
+  border-radius:999px;
+  border:3px solid transparent;
+  background-clip:content-box;
+}
+.m-select-list::-webkit-scrollbar-thumb:hover{
+  background:var(--primary);
+  border:3px solid transparent;
+  background-clip:content-box;
 }
 .m-select-menu.is-up{transform-origin:bottom center;animation:msel-up .18s cubic-bezier(.22,1,.36,1)}
 @keyframes msel-in{from{opacity:0;transform:translateY(-6px) scale(.97)}to{opacity:1;transform:none}}
