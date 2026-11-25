@@ -151,25 +151,30 @@ require __DIR__ . '/../includes/header.php';
     <div class="map-head">
       <div>
         <h2>Select dispatch location</h2>
-        <p class="muted">Click anywhere on the map (or drag the pin) to set the exact spot</p>
+        <p class="muted">Click, search, or drag the pin to set the responder's destination</p>
       </div>
       <div class="legend">
         <span class="legend-item"><i class="dot tone-primary"></i>Dispatch pin</span>
-        <span class="legend-item"><i class="dot dot-assigned"></i>Existing reports</span>
+        <span class="legend-item"><i class="dot dot-pending"></i>Pending</span>
+        <span class="legend-item"><i class="dot dot-assigned"></i>Active</span>
+        <label class="legend-toggle"><input type="checkbox" id="dispatch-show-closed"><span>Show resolved</span></label>
       </div>
     </div>
     <?= mapAssets() ?>
-    <div id="dispatch-map" class="map" style="height:500px"
+    <div id="dispatch-map" class="map dispatch-map"
          data-lat="<?= e($hasOldPin ? $old['latitude'] : $mlat) ?>"
          data-lng="<?= e($hasOldPin ? $old['longitude'] : $mlng) ?>"
+         data-center-lat="<?= e($mlat) ?>"
+         data-center-lng="<?= e($mlng) ?>"
          data-pin="<?= $hasOldPin ? '1' : '0' ?>"
          data-points="<?= e(json_encode($pts)) ?>"></div>
     <div class="map-foot">
       <div class="dispatch-map-btns">
         <button type="button" id="dispatch-locate" class="btn ghost small"><?= icon('pin', 15) ?> Use my location</button>
-        <button type="button" id="dispatch-clear" class="btn ghost small">Clear pin</button>
+        <button type="button" id="dispatch-recenter" class="btn ghost small"><?= icon('radar', 15) ?> Recenter</button>
+        <button type="button" id="dispatch-clear" class="btn ghost small"<?= $hasOldPin ? '' : ' hidden' ?>>Clear pin</button>
       </div>
-      <span class="dispatch-coords<?= $hasOldPin ? ' is-pinned' : '' ?>" id="dispatch-coords">
+      <span class="dispatch-coords<?= $hasOldPin ? ' is-pinned' : '' ?>" id="dispatch-coords" aria-live="polite">
         <?= $hasOldPin
             ? 'Pinned: ' . e(number_format((float) $old['latitude'], 5) . ', ' . number_format((float) $old['longitude'], 5))
             : 'No pin placed yet — click the map' ?>
@@ -188,6 +193,17 @@ require __DIR__ . '/../includes/header.php';
       <?= csrfField() ?>
       <input type="hidden" id="dispatch-lat" name="latitude" value="<?= e($hasOldPin ? $old['latitude'] : '') ?>">
       <input type="hidden" id="dispatch-lng" name="longitude" value="<?= e($hasOldPin ? $old['longitude'] : '') ?>">
+
+      <div class="dispatch-target-box<?= $hasOldPin ? ' is-pinned' : '' ?>" id="dispatch-pin-status">
+        <div class="dispatch-target-copy">
+          <span class="dispatch-target-ic"><?= icon('pin', 15) ?></span>
+          <div class="dispatch-target-text">
+            <strong id="dispatch-pin-heading"><?= $hasOldPin ? 'Dispatch pin ready' : 'Location pin required' ?></strong>
+            <span id="dispatch-pin-summary"><?= $hasOldPin ? e(number_format((float) $old['latitude'], 5) . ', ' . number_format((float) $old['longitude'], 5)) : 'Click or search on the map to drop a pin' ?></span>
+          </div>
+        </div>
+        <button type="button" class="btn ghost small" id="dispatch-jump-map"><?= $hasOldPin ? 'Adjust pin' : 'Select on map' ?></button>
+      </div>
 
       <label for="volunteer_id">Volunteer to send</label>
       <select id="volunteer_id" name="volunteer_id" required>

@@ -705,15 +705,63 @@ header('X-Content-Type-Options: nosniff');
 
     function centerOf(el) { return [parseFloat(el.dataset.lat), parseFloat(el.dataset.lng)]; }
 
+    function fetchApproxIpLocation(onSuccess, onError) {
+      var providers = [
+        {
+          url: 'https://get.geojs.io/v1/ip/geo.json',
+          parse: function (d) {
+            if (!d) return null;
+            return {
+              lat: parseFloat(d.latitude),
+              lng: parseFloat(d.longitude),
+              label: [d.city, d.region, d.country].filter(Boolean).slice(0, 2).join(', ')
+            };
+          }
+        },
+        {
+          url: 'https://ipwho.is/',
+          parse: function (d) {
+            if (!d || d.success === false) return null;
+            return {
+              lat: parseFloat(d.latitude),
+              lng: parseFloat(d.longitude),
+              label: [d.city, d.region, d.country].filter(Boolean).slice(0, 2).join(', ')
+            };
+          }
+        }
+      ];
+
+      function tryNext(idx) {
+        if (idx >= providers.length) {
+          onError();
+          return;
+        }
+        var p = providers[idx];
+        var ctrl = window.AbortController ? new AbortController() : null;
+        var timer = ctrl ? setTimeout(function () { ctrl.abort(); }, 4500) : null;
+        fetch(p.url, { signal: ctrl ? ctrl.signal : undefined, cache: 'no-store' })
+          .then(function (r) { return r.ok ? r.json() : null; })
+          .then(function (data) {
+            if (timer) clearTimeout(timer);
+            var parsed = p.parse(data);
+            if (parsed && !isNaN(parsed.lat) && !isNaN(parsed.lng) &&
+                Math.abs(parsed.lat) <= 90 && Math.abs(parsed.lng) <= 180 &&
+                (parsed.lat !== 0 || parsed.lng !== 0)) {
+              onSuccess(parsed.lat, parsed.lng, parsed.label);
+            } else {
+              tryNext(idx + 1);
+            }
+          })
+          .catch(function () {
+            if (timer) clearTimeout(timer);
+            tryNext(idx + 1);
+          });
+      }
+
+      tryNext(0);
+    }
+
     function requestCurrentLocation(btn, onFound) {
-      if (!window.isSecureContext) {
-        showToast('Location detection requires HTTPS. Search a place above or click the map instead.', 'error');
-        return;
-      }
-      if (!navigator.geolocation) {
-        showToast('Your browser does not support location. Search a place above or click the map.', 'error');
-        return;
-      }
       if (btn && btn.dataset.locating === '1') return;
 
       var savedNodes = btn ? Array.prototype.slice.call(btn.childNodes) : [];
@@ -735,37 +783,63 @@ header('X-Content-Type-Options: nosniff');
         savedNodes.forEach(function (n) { btn.appendChild(n); });
       }
 
-      function handleFail(err) {
+      function finishOk(lat, lng, approximate, areaLabel) {
+        restoreBtn();
+        onFound(lat, lng, { approximate: !!approximate, label: areaLabel || '' });
+        if (approximate) {
+          var where = areaLabel ? ('near ' + areaLabel) : 'near your network location';
+          showToast('Centered ' + where + ' (approximate \u2014 exact GPS requires HTTPS). Drag the pin or search to refine.');
+        } else {
+          showToast('Centered map on your current location.');
+        }
+      }
+
+      function showLookupError(err) {
         restoreBtn();
         var code = err && err.code;
         var msg = 'Could not detect your location. Search a place above or click the map.';
-        if (code === 1) {
-          msg = 'Location access was blocked. Allow Location in browser/site settings, or search above.';
+        if (!window.isSecureContext) {
+          msg = 'Exact GPS requires HTTPS and network lookup is unavailable. Search a place above or click the map.';
+        } else if (code === 1) {
+          msg = 'Location access is blocked in browser/site settings. Search a place above or click the map.';
         } else if (code === 2) {
-          msg = 'Location unavailable on this device/browser (check OS Location or browser Shields). Search a place or click the map.';
+          msg = 'Location unavailable on this device/browser. Search a place above or click the map.';
         } else if (code === 3) {
           msg = 'Location lookup timed out. Try again, search an address, or click the map.';
         }
         showToast(msg, 'error');
       }
 
-      function handleOk(pos) {
-        restoreBtn();
-        onFound(pos.coords.latitude, pos.coords.longitude);
-        showToast('Centered map on your current location.');
+      function fallbackToIp(gpsErr) {
+        fetchApproxIpLocation(function (lat, lng, areaLabel) {
+          finishOk(lat, lng, true, areaLabel);
+        }, function () {
+          showLookupError(gpsErr);
+        });
       }
 
-      navigator.geolocation.getCurrentPosition(handleOk, function (err) {
+      if (!window.isSecureContext || !navigator.geolocation) {
+        fallbackToIp(null);
+        return;
+      }
+
+      function handleGpsOk(pos) {
+        finishOk(pos.coords.latitude, pos.coords.longitude, false, '');
+      }
+
+      navigator.geolocation.getCurrentPosition(handleGpsOk, function (err) {
         if (err && (err.code === 2 || err.code === 3)) {
-          navigator.geolocation.getCurrentPosition(handleOk, handleFail, {
+          navigator.geolocation.getCurrentPosition(handleGpsOk, function (err2) {
+            fallbackToIp(err2 || err);
+          }, {
             enableHighAccuracy: false,
-            timeout: 8000,
+            timeout: 7000,
             maximumAge: 300000
           });
         } else {
-          handleFail(err);
+          fallbackToIp(err);
         }
-      }, { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 });
+      }, { enableHighAccuracy: true, timeout: 7000, maximumAge: 60000 });
     }
 
     function parseCoordinates(raw) {
@@ -1033,6 +1107,46 @@ header('X-Content-Type-Options: nosniff');
       });
     }
 
+    function createReverseGeocoder() {
+      var timer = null;
+      var ctrl = null;
+      function cancel() {
+        clearTimeout(timer);
+        if (ctrl) { ctrl.abort(); ctrl = null; }
+      }
+      function formatAddress(data) {
+        if (!data) return '';
+        var a = data.address || {};
+        var primary = a.amenity || a.building || a.road || a.pedestrian || a.footway || a.neighbourhood || a.suburb || a.village || '';
+        var secondary = a.neighbourhood || a.suburb || a.village || a.town || a.city_district || a.city || '';
+        var parts = [];
+        if (primary) parts.push(primary);
+        if (secondary && secondary.toLowerCase() !== primary.toLowerCase()) parts.push(secondary);
+        if (parts.length) return parts.join(', ');
+        var raw = String(data.display_name || '').split(',').map(function (s) { return s.trim(); }).filter(Boolean);
+        return raw.slice(0, 2).join(', ');
+      }
+      function lookup(lat, lng, onAddress) {
+        cancel();
+        timer = setTimeout(function () {
+          ctrl = window.AbortController ? new AbortController() : null;
+          var url = 'https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=18&addressdetails=1&lat=' +
+            encodeURIComponent(lat.toFixed(6)) + '&lon=' + encodeURIComponent(lng.toFixed(6));
+          fetch(url, {
+            headers: { 'Accept': 'application/json' },
+            signal: ctrl ? ctrl.signal : undefined
+          })
+            .then(function (r) { return r.ok ? r.json() : null; })
+            .then(function (data) {
+              var label = formatAddress(data);
+              if (label && onAddress) onAddress(label);
+            })
+            .catch(function () {});
+        }, 240);
+      }
+      return { lookup: lookup, cancel: cancel };
+    }
+
     // 10a. Report form: click the map (or use GPS) to drop a pin
     var picker = document.getElementById('map-picker');
     if (picker && !picker._leafletMap) {
@@ -1041,27 +1155,48 @@ header('X-Content-Type-Options: nosniff');
       var latInput = document.getElementById('latitude');
       var lngInput = document.getElementById('longitude');
       var repLocInput = document.getElementById('location');
+      var repLastAuto = '';
+      var repRevGeo = createReverseGeocoder();
       attachMapLifecycle(picker, pickMap, addTiles(pickMap));
 
-      var setPin = function (lat, lng) {
-        if (pin) pin.setLatLng([lat, lng]); else pin = L.marker([lat, lng]).addTo(pickMap);
+      var applyAutoRepPlace = function (label) {
+        if (!repLocInput || !label) return;
+        var cur = repLocInput.value.trim();
+        if (!cur || cur === repLastAuto) {
+          repLocInput.value = label;
+          repLastAuto = label;
+        }
+      };
+
+      var setPin = function (lat, lng, resolvePlace) {
+        if (pin) {
+          pin.setLatLng([lat, lng]);
+        } else {
+          pin = L.marker([lat, lng], { draggable: true }).addTo(pickMap);
+          pin.on('dragend', function () {
+            var pos = pin.getLatLng();
+            setPin(pos.lat, pos.lng, true);
+          });
+        }
         latInput.value = lat.toFixed(7);
         lngInput.value = lng.toFixed(7);
+        if (resolvePlace) repRevGeo.lookup(lat, lng, applyAutoRepPlace);
       };
-      if (picker.dataset.pin === '1') setPin.apply(null, centerOf(picker));
-      pickMap.on('click', function (e) { setPin(e.latlng.lat, e.latlng.lng); });
+      if (picker.dataset.pin === '1') setPin(centerOf(picker)[0], centerOf(picker)[1], false);
+      pickMap.on('click', function (e) { setPin(e.latlng.lat, e.latlng.lng, true); });
 
       attachMapSearch(picker, pickMap, function (lat, lng, placeLabel) {
-        setPin(lat, lng);
+        repRevGeo.cancel();
+        setPin(lat, lng, false);
         pickMap.setView([lat, lng], 17);
-        if (repLocInput && !repLocInput.value.trim() && placeLabel) repLocInput.value = placeLabel;
+        applyAutoRepPlace(placeLabel);
       });
 
       var locate = document.getElementById('locate');
       if (locate) locate.addEventListener('click', function () {
-        requestCurrentLocation(locate, function (lat, lng) {
-          setPin(lat, lng);
-          pickMap.setView([lat, lng], 17);
+        requestCurrentLocation(locate, function (lat, lng, meta) {
+          setPin(lat, lng, true);
+          pickMap.setView([lat, lng], (meta && meta.approximate) ? 14 : 17);
         });
       });
     }
@@ -1104,7 +1239,7 @@ header('X-Content-Type-Options: nosniff');
       }, 'Jump to place or lat, lng...');
     }
 
-    // 10d. Admin Pin & Dispatch: click anywhere to drop/drag a dispatch pin + see existing incidents
+    // 10d. Admin Pin & Dispatch: click/drag/search to pin destination + filter existing reports
     var dispatchEl = document.getElementById('dispatch-map');
     if (dispatchEl && !dispatchEl._leafletMap) {
       var dMap = L.map(dispatchEl, mapOpts).setView(centerOf(dispatchEl), dispatchEl.dataset.pin === '1' ? 16 : 14);
@@ -1114,7 +1249,19 @@ header('X-Content-Type-Options: nosniff');
       var dLocIn = document.getElementById('location');
       var dCoords = document.getElementById('dispatch-coords');
       var dCard = document.getElementById('dispatch-map-card');
+      var dStatusBox = document.getElementById('dispatch-pin-status');
+      var dStatusHead = document.getElementById('dispatch-pin-heading');
+      var dStatusSub = document.getElementById('dispatch-pin-summary');
+      var dJumpBtn = document.getElementById('dispatch-jump-map');
+      var dClear = document.getElementById('dispatch-clear');
+      var dRecenter = document.getElementById('dispatch-recenter');
+      var dShowClosed = document.getElementById('dispatch-show-closed');
       var dPin = null;
+      var dLastAutoPlace = '';
+      var dRevGeo = createReverseGeocoder();
+
+      var activeGroup = L.layerGroup().addTo(dMap);
+      var closedGroup = L.layerGroup();
 
       try {
         var existingPts = JSON.parse(dispatchEl.dataset.points || '[]');
@@ -1132,9 +1279,18 @@ header('X-Content-Type-Options: nosniff');
           st.textContent = p.status;
           box.appendChild(link);
           box.appendChild(st);
-          L.marker([p.lat, p.lng], { icon: pIcon }).addTo(dMap).bindPopup(box);
+          var m = L.marker([p.lat, p.lng], { icon: pIcon }).bindPopup(box);
+          if (p.key === 'resolved' || p.key === 'rejected') closedGroup.addLayer(m);
+          else activeGroup.addLayer(m);
         });
       } catch (err) {}
+
+      if (dShowClosed) {
+        dShowClosed.addEventListener('change', function () {
+          if (dShowClosed.checked) closedGroup.addTo(dMap);
+          else dMap.removeLayer(closedGroup);
+        });
+      }
 
       var dispatchIcon = L.divIcon({
         className: 'pin pin-dispatch',
@@ -1142,60 +1298,112 @@ header('X-Content-Type-Options: nosniff');
         iconSize: [30, 30], iconAnchor: [15, 30], popupAnchor: [0, -30]
       });
 
-      function updateDispatchPin(lat, lng, pan) {
+      function applyDispatchPlace(label, lat, lng) {
+        if (!label) return;
+        if (dLocIn) {
+          var cur = dLocIn.value.trim();
+          if (!cur || cur === dLastAutoPlace) {
+            dLocIn.value = label;
+            dLastAutoPlace = label;
+          }
+        }
+        if (dCoords && dLatIn && dLatIn.value) {
+          dCoords.textContent = 'Pinned: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' \u00b7 ' + label;
+        }
+        if (dStatusSub && dLatIn && dLatIn.value) {
+          dStatusSub.textContent = label + ' (' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ')';
+        }
+      }
+
+      function syncPinStatus(lat, lng) {
+        var pinned = typeof lat === 'number' && typeof lng === 'number';
+        var coordStr = pinned ? lat.toFixed(5) + ', ' + lng.toFixed(5) : '';
+        if (dCoords) {
+          dCoords.textContent = pinned ? ('Pinned: ' + coordStr) : 'No pin placed yet \u2014 click the map';
+          dCoords.classList.toggle('is-pinned', pinned);
+        }
+        if (dClear) dClear.hidden = !pinned;
+        if (dCard && pinned) dCard.classList.remove('needs-pin');
+        if (dStatusBox) {
+          dStatusBox.classList.toggle('is-pinned', pinned);
+          if (pinned) dStatusBox.classList.remove('is-error');
+        }
+        if (dStatusHead) dStatusHead.textContent = pinned ? 'Dispatch pin ready' : 'Location pin required';
+        if (dStatusSub) dStatusSub.textContent = pinned ? coordStr : 'Click or search on the map to drop a pin';
+        if (dJumpBtn) dJumpBtn.textContent = pinned ? 'Adjust pin' : 'Select on map';
+      }
+
+      function updateDispatchPin(lat, lng, pan, resolvePlace) {
         if (!dPin) {
           dPin = L.marker([lat, lng], { icon: dispatchIcon, draggable: true, zIndexOffset: 1000 }).addTo(dMap);
           dPin.bindPopup('Dispatch target (drag to adjust)');
           dPin.on('dragend', function () {
             var pos = dPin.getLatLng();
-            updateDispatchPin(pos.lat, pos.lng, false);
+            updateDispatchPin(pos.lat, pos.lng, false, true);
           });
         } else {
           dPin.setLatLng([lat, lng]);
         }
         if (dLatIn) dLatIn.value = lat.toFixed(7);
         if (dLngIn) dLngIn.value = lng.toFixed(7);
-        if (dCoords) {
-          dCoords.textContent = 'Pinned: ' + lat.toFixed(5) + ', ' + lng.toFixed(5);
-          dCoords.classList.add('is-pinned');
-        }
-        if (dCard) dCard.classList.remove('needs-pin');
+        syncPinStatus(lat, lng);
         if (pan) dMap.setView([lat, lng], Math.max(dMap.getZoom(), 17));
+        if (resolvePlace !== false) {
+          dRevGeo.lookup(lat, lng, function (label) { applyDispatchPlace(label, lat, lng); });
+        }
       }
 
       if (dispatchEl.dataset.pin === '1') {
         var initCoords = centerOf(dispatchEl);
-        updateDispatchPin(initCoords[0], initCoords[1], false);
+        updateDispatchPin(initCoords[0], initCoords[1], false, false);
       }
 
       dMap.on('click', function (ev) {
-        updateDispatchPin(ev.latlng.lat, ev.latlng.lng, false);
+        updateDispatchPin(ev.latlng.lat, ev.latlng.lng, false, true);
       });
 
       attachMapSearch(dispatchEl, dMap, function (lat, lng, placeLabel) {
-        updateDispatchPin(lat, lng, true);
-        if (dLocIn && !dLocIn.value.trim() && placeLabel) dLocIn.value = placeLabel;
+        dRevGeo.cancel();
+        updateDispatchPin(lat, lng, true, !placeLabel);
+        if (placeLabel) applyDispatchPlace(placeLabel, lat, lng);
       });
 
       var dLocate = document.getElementById('dispatch-locate');
       if (dLocate) {
         dLocate.addEventListener('click', function () {
-          requestCurrentLocation(dLocate, function (lat, lng) {
-            updateDispatchPin(lat, lng, true);
+          requestCurrentLocation(dLocate, function (lat, lng, meta) {
+            updateDispatchPin(lat, lng, false, true);
+            dMap.setView([lat, lng], (meta && meta.approximate) ? 14 : Math.max(dMap.getZoom(), 17));
           });
         });
       }
 
-      var dClear = document.getElementById('dispatch-clear');
+      if (dRecenter) {
+        dRecenter.addEventListener('click', function () {
+          var cLat = parseFloat(dispatchEl.dataset.centerLat || '');
+          var cLng = parseFloat(dispatchEl.dataset.centerLng || '');
+          var targetCenter = (!isNaN(cLat) && !isNaN(cLng)) ? [cLat, cLng] : centerOf(dispatchEl);
+          dMap.setView(targetCenter, 14);
+        });
+      }
+
+      if (dJumpBtn && dCard) {
+        dJumpBtn.addEventListener('click', function () {
+          dCard.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+        });
+      }
+
       if (dClear) {
         dClear.addEventListener('click', function () {
+          dRevGeo.cancel();
           if (dPin) { dMap.removeLayer(dPin); dPin = null; }
           if (dLatIn) dLatIn.value = '';
           if (dLngIn) dLngIn.value = '';
-          if (dCoords) {
-            dCoords.textContent = 'No pin placed yet \u2014 click the map';
-            dCoords.classList.remove('is-pinned');
+          if (dLocIn && dLastAutoPlace && dLocIn.value.trim() === dLastAutoPlace) {
+            dLocIn.value = '';
           }
+          dLastAutoPlace = '';
+          syncPinStatus(null, null);
         });
       }
 
@@ -1204,7 +1412,11 @@ header('X-Content-Type-Options: nosniff');
         dForm.addEventListener('submit', function (ev) {
           if (!dLatIn || !dLngIn || !dLatIn.value || !dLngIn.value) {
             ev.preventDefault();
-            if (dCard) dCard.classList.add('needs-pin');
+            if (dCard) {
+              dCard.classList.add('needs-pin');
+              dCard.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'center' });
+            }
+            if (dStatusBox) dStatusBox.classList.add('is-error');
             showToast('Click on the map to drop a pin before dispatching.', 'error');
           }
         });
@@ -1248,8 +1460,9 @@ header('X-Content-Type-Options: nosniff');
       var sLocate = document.getElementById('settings-locate');
       if (sLocate) {
         sLocate.addEventListener('click', function () {
-          requestCurrentLocation(sLocate, function (lat, lng) {
-            applySettingsCoords(lat, lng, true);
+          requestCurrentLocation(sLocate, function (lat, lng, meta) {
+            applySettingsCoords(lat, lng, false);
+            sMap.setView([lat, lng], (meta && meta.approximate) ? 13 : Math.max(sMap.getZoom(), 16));
           });
         });
       }
