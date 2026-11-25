@@ -23,20 +23,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $phone = trim((string) ($_POST['phone'] ?? ''));
         $address = trim((string) ($_POST['address'] ?? ''));
         $newPw = (string) ($_POST['password'] ?? '');
+        $role = trim((string) ($_POST['role'] ?? 'volunteer'));
+        $allowedRoles = ['volunteer', 'resident', 'admin'];
 
         if ($id <= 0 || $fullName === '') {
             setFlash('Enter a valid name for the volunteer.', 'error');
+        } elseif (!in_array($role, $allowedRoles, true)) {
+            setFlash('Choose a valid account role.', 'error');
         } elseif ($newPw !== '' && strlen($newPw) < 6) {
             setFlash('New temporary password must be at least 6 characters.', 'error');
         } else {
-            if ($newPw !== '') {
-                $upd = pdo()->prepare("UPDATE users SET full_name = ?, phone = ?, address = ?, password = ? WHERE id = ? AND role = 'volunteer'");
-                $upd->execute([$fullName, $phone !== '' ? $phone : null, $address !== '' ? $address : null, password_hash($newPw, PASSWORD_BCRYPT), $id]);
-            } else {
-                $upd = pdo()->prepare("UPDATE users SET full_name = ?, phone = ?, address = ? WHERE id = ? AND role = 'volunteer'");
-                $upd->execute([$fullName, $phone !== '' ? $phone : null, $address !== '' ? $address : null, $id]);
+            $activeJobs = 0;
+            if ($role !== 'volunteer') {
+                $chkJobs = pdo()->prepare("SELECT COUNT(*) FROM reports WHERE volunteer_id = ? AND status IN ('assigned', 'in_progress')");
+                $chkJobs->execute([$id]);
+                $activeJobs = (int) $chkJobs->fetchColumn();
             }
-            setFlash('Volunteer profile updated.');
+            if ($activeJobs > 0) {
+                setFlash("Reassign or close this volunteer's {$activeJobs} active dispatch(es) before changing their role.", 'error');
+            } else {
+                if ($newPw !== '') {
+                    $upd = pdo()->prepare("UPDATE users SET full_name = ?, phone = ?, address = ?, role = ?, password = ? WHERE id = ? AND role = 'volunteer'");
+                    $upd->execute([$fullName, $phone !== '' ? $phone : null, $address !== '' ? $address : null, $role, password_hash($newPw, PASSWORD_BCRYPT), $id]);
+                } else {
+                    $upd = pdo()->prepare("UPDATE users SET full_name = ?, phone = ?, address = ?, role = ? WHERE id = ? AND role = 'volunteer'");
+                    $upd->execute([$fullName, $phone !== '' ? $phone : null, $address !== '' ? $address : null, $role, $id]);
+                }
+                if ($role === 'resident') {
+                    setFlash("{$fullName} moved back to the Residents directory.");
+                } elseif ($role === 'admin') {
+                    setFlash("{$fullName} granted Administrator access (manage in Settings → Admin Security).");
+                } else {
+                    setFlash('Volunteer profile updated.');
+                }
+            }
         }
         redirectTo('admin/volunteers.php');
     }
@@ -261,7 +281,8 @@ require __DIR__ . '/../includes/header.php';
                 data-name="<?= e($volUser['full_name']) ?>"
                 data-email="<?= e($volUser['email']) ?>"
                 data-phone="<?= e($volUser['phone'] ?? '') ?>"
-                data-address="<?= e($volUser['address'] ?? '') ?>">
+                data-address="<?= e($volUser['address'] ?? '') ?>"
+                data-role="<?= e($volUser['role']) ?>">
           <?= icon('edit', 14) ?> Edit
         </button>
         <?php if ($volUser['status'] === 'active'): ?>
@@ -360,6 +381,16 @@ require __DIR__ . '/../includes/header.php';
         </div>
         <label for="vol-edit-address">Assigned area / station</label>
         <input id="vol-edit-address" name="address" placeholder="e.g. Purok 2 Outpost">
+        <label for="vol-edit-role">Account role</label>
+        <select id="vol-edit-role" name="role">
+          <option value="volunteer">Volunteer (Responder)</option>
+          <option value="resident">Resident</option>
+          <option value="admin">Administrator</option>
+        </select>
+        <div class="role-change-note" id="vol-edit-role-note" hidden>
+          <?= icon('alert', 16) ?>
+          <span id="vol-edit-role-msg"></span>
+        </div>
         <label for="vol-edit-password">Reset password (optional)</label>
         <div class="pw-gen-row">
           <div class="pm-input-ic pm-pw-ic">

@@ -77,6 +77,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             redirectTo('admin/settings.php');
         }
     }
+
+    if ($action === 'admin_role') {
+        $targetId = (int) ($_POST['id'] ?? 0);
+        $newRole = trim((string) ($_POST['role'] ?? 'admin'));
+        $newStatus = trim((string) ($_POST['status'] ?? 'active'));
+
+        if ($targetId <= 0 || !in_array($newRole, ['admin', 'volunteer', 'resident'], true) || !in_array($newStatus, ['active', 'inactive'], true)) {
+            setFlash('Choose a valid role and status.', 'error');
+        } elseif ($targetId === $uid) {
+            setFlash('You cannot demote or deactivate your own signed-in administrator account.', 'error');
+        } else {
+            $tStmt = pdo()->prepare("SELECT id, full_name, status FROM users WHERE id = ? AND role = 'admin' LIMIT 1");
+            $tStmt->execute([$targetId]);
+            $target = $tStmt->fetch();
+            if (!$target) {
+                setFlash('Administrator account not found.', 'error');
+            } else {
+                $activeAdmins = (int) pdo()->query("SELECT COUNT(*) FROM users WHERE role = 'admin' AND status = 'active'")->fetchColumn();
+                $removesActiveAdmin = ($target['status'] === 'active') && ($newRole !== 'admin' || $newStatus !== 'active');
+                if ($removesActiveAdmin && $activeAdmins <= 1) {
+                    setFlash('Keep at least one active Administrator account.', 'error');
+                } else {
+                    $upd = pdo()->prepare("UPDATE users SET role = ?, status = ? WHERE id = ? AND role = 'admin'");
+                    $upd->execute([$newRole, $newStatus, $targetId]);
+                    if ($newRole === 'volunteer') {
+                        setFlash("{$target['full_name']} moved to the Volunteers roster.");
+                    } elseif ($newRole === 'resident') {
+                        setFlash("{$target['full_name']} moved to the Residents directory.");
+                    } else {
+                        setFlash("{$target['full_name']} administrator status updated.");
+                    }
+                }
+            }
+        }
+        redirectTo('admin/settings.php');
+    }
 }
 
 $siteName = setting('site_name', 'CAIRS');
@@ -94,6 +130,7 @@ $hotlineVals = [
     setting('hotline_medical'),
 ];
 $activeHotlines = count(array_filter($hotlineVals, static fn ($v) => trim((string) $v) !== ''));
+$adminAccounts = pdo()->query("SELECT id, full_name, email, phone, address, status, avatar_type, avatar_style, avatar_shape, avatar_url, created_at FROM users WHERE role = 'admin' ORDER BY created_at ASC")->fetchAll();
 
 $title = 'Settings';
 require __DIR__ . '/../includes/header.php';
@@ -345,6 +382,115 @@ require __DIR__ . '/../includes/header.php';
         </div>
       </form>
     </section>
+
+    <section class="card setting-card" data-settings-panel="security">
+      <div class="setting-head">
+        <div class="setting-head-title">
+          <span class="setting-head-ic"><?= icon('shield', 19) ?></span>
+          <div>
+            <h2>Administrator Accounts &amp; Roles</h2>
+            <p>Review accounts with Administrator access. Promote Residents or Volunteers from their directories.</p>
+          </div>
+        </div>
+        <span class="setting-tag is-on"><?= count($adminAccounts) ?> admin<?= count($adminAccounts) === 1 ? '' : 's' ?></span>
+      </div>
+      <div class="setting-body">
+        <div class="admin-team-list">
+          <?php foreach ($adminAccounts as $adm):
+            $isSelf = (int) $adm['id'] === $uid;
+          ?>
+          <div class="admin-team-row">
+            <div class="admin-team-main">
+              <?= renderAvatar($adm) ?>
+              <div class="admin-team-copy">
+                <span class="admin-team-name">
+                  <?= e($adm['full_name']) ?>
+                  <?php if ($isSelf): ?><span class="admin-team-you">You</span><?php endif; ?>
+                </span>
+                <span class="admin-team-email"><?= e($adm['email']) ?> &middot; Joined <?= e(fmtDate($adm['created_at'])) ?></span>
+              </div>
+            </div>
+            <div class="admin-team-act">
+              <span class="badge <?= $adm['status'] === 'active' ? 's-resolved' : 's-rejected' ?>"><?= e(ucfirst((string) $adm['status'])) ?></span>
+              <?php if ($isSelf): ?>
+                <span class="admin-team-self">Current session</span>
+              <?php else: ?>
+                <button type="button" class="btn ghost small"
+                        data-adm-edit
+                        data-modal-open="adm-role-modal"
+                        data-id="<?= (int) $adm['id'] ?>"
+                        data-name="<?= e($adm['full_name']) ?>"
+                        data-email="<?= e($adm['email']) ?>"
+                        data-role="admin"
+                        data-status="<?= e($adm['status']) ?>">
+                  <?= icon('edit', 14) ?> Change Role
+                </button>
+              <?php endif; ?>
+            </div>
+          </div>
+          <?php endforeach; ?>
+        </div>
+      </div>
+      <div class="setting-foot">
+        <span class="setting-foot-note">Need to promote someone? Open <a href="residents.php">Residents</a> or <a href="volunteers.php">Volunteers</a> and click Edit.</span>
+      </div>
+    </section>
+  </div>
+</div>
+
+<div class="modal" id="adm-role-modal">
+  <div class="modal-backdrop" data-modal-close></div>
+  <div class="modal-dialog modal-md" role="dialog" aria-modal="true" aria-labelledby="adm-role-title">
+    <div class="modal-head">
+      <div class="modal-head-copy">
+        <span class="modal-head-ic"><?= icon('shield', 18) ?></span>
+        <div>
+          <h3 id="adm-role-title">Manage Administrator Role</h3>
+          <p>Reassign this account to Volunteer or Resident, or change its active status.</p>
+        </div>
+      </div>
+      <button type="button" class="notif-head-ic" data-modal-close aria-label="Close"><?= icon('x', 16) ?></button>
+    </div>
+    <form class="modal-form" method="post">
+      <?= csrfField() ?><input type="hidden" name="action" value="admin_role"><input type="hidden" id="adm-role-id" name="id" value="">
+      <div class="modal-body">
+        <div class="form-row">
+          <div>
+            <label for="adm-role-name">Full name</label>
+            <input id="adm-role-name" disabled>
+          </div>
+          <div>
+            <label for="adm-role-email">Account email</label>
+            <input id="adm-role-email" type="email" disabled>
+          </div>
+        </div>
+        <div class="form-row">
+          <div>
+            <label for="adm-role-select">Account role</label>
+            <select id="adm-role-select" name="role">
+              <option value="admin">Administrator</option>
+              <option value="volunteer">Volunteer (Responder)</option>
+              <option value="resident">Resident</option>
+            </select>
+          </div>
+          <div>
+            <label for="adm-role-status">Account status</label>
+            <select id="adm-role-status" name="status">
+              <option value="active">Active</option>
+              <option value="inactive">Inactive</option>
+            </select>
+          </div>
+        </div>
+        <div class="role-change-note" id="adm-role-note" hidden>
+          <?= icon('alert', 16) ?>
+          <span id="adm-role-msg"></span>
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn ghost" data-modal-close>Cancel</button>
+        <button type="submit" class="btn">Save Changes</button>
+      </div>
+    </form>
   </div>
 </div>
 <?php require __DIR__ . '/../includes/footer.php'; ?>

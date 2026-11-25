@@ -2082,12 +2082,20 @@ header('X-Content-Type-Options: nosniff');
     var txt = String(opt ? opt.textContent : '').trim().toLowerCase();
 
     if (name === 'status') {
+      if (val === 'active') return { icon: 'check-circle', tone: 'emerald' };
+      if (val === 'inactive') return { icon: 'x-circle', tone: 'rose' };
       if (val === 'pending') return { icon: 'clock', tone: 'amber' };
       if (val === 'assigned') return { icon: 'user-check', tone: 'sky' };
       if (val === 'in_progress') return { icon: 'loader', tone: 'violet' };
       if (val === 'resolved') return { icon: 'check-circle', tone: 'emerald' };
       if (val === 'rejected') return { icon: 'x-circle', tone: 'rose' };
       return { icon: 'layers', tone: 'primary' };
+    }
+    if (name === 'role') {
+      if (val === 'resident') return { icon: 'user', tone: 'sky' };
+      if (val === 'volunteer') return { icon: 'shield', tone: 'emerald' };
+      if (val === 'admin') return { icon: 'shield-alert', tone: 'amber' };
+      return { icon: 'user', tone: 'primary' };
     }
     if (name === 'priority') {
       if (val === 'low') return { icon: 'arrow-down', tone: 'emerald' };
@@ -3378,7 +3386,37 @@ header('X-Content-Type-Options: nosniff');
       });
     });
 
-    // 14c. Resident & Volunteer edit modal populator
+    // 14c. Resident, Volunteer & Admin role edit modal populators
+    function bindRoleNote(selectEl, noteEl, msgEl, baseRole, copyMap) {
+      if (!selectEl || !noteEl || !msgEl) return function () {};
+      function sync() {
+        var val = selectEl.value || baseRole;
+        if (val === baseRole) {
+          noteEl.hidden = true;
+          noteEl.classList.remove('is-info');
+          msgEl.textContent = '';
+        } else {
+          var entry = copyMap[val];
+          noteEl.hidden = !entry;
+          noteEl.classList.toggle('is-info', !!(entry && entry.info));
+          msgEl.textContent = entry ? entry.text : '';
+        }
+      }
+      selectEl.addEventListener('change', sync);
+      return sync;
+    }
+
+    var syncResRoleNote = bindRoleNote(
+      document.getElementById('res-edit-role'),
+      document.getElementById('res-edit-role-note'),
+      document.getElementById('res-edit-role-msg'),
+      'resident',
+      {
+        volunteer: { info: true, text: 'Promoting to Volunteer moves this account to the Volunteers roster so they can receive field dispatches.' },
+        admin: { info: false, text: 'Administrator grants full control over reports, users, announcements, and system settings.' }
+      }
+    );
+
     $all('[data-res-edit]', mainEl).forEach(function (btn) {
       btn.addEventListener('click', function () {
         var idEl = document.getElementById('res-edit-id');
@@ -3386,13 +3424,30 @@ header('X-Content-Type-Options: nosniff');
         var emailEl = document.getElementById('res-edit-email');
         var phoneEl = document.getElementById('res-edit-phone');
         var addrEl = document.getElementById('res-edit-address');
+        var roleEl = document.getElementById('res-edit-role');
         if (idEl) idEl.value = btn.getAttribute('data-id') || '';
         if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
         if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
         if (phoneEl) phoneEl.value = btn.getAttribute('data-phone') || '';
         if (addrEl) addrEl.value = btn.getAttribute('data-address') || '';
+        if (roleEl) {
+          roleEl.value = btn.getAttribute('data-role') || 'resident';
+          roleEl.dispatchEvent(new Event('change'));
+        }
+        syncResRoleNote();
       });
     });
+
+    var syncVolRoleNote = bindRoleNote(
+      document.getElementById('vol-edit-role'),
+      document.getElementById('vol-edit-role-note'),
+      document.getElementById('vol-edit-role-msg'),
+      'volunteer',
+      {
+        resident: { info: true, text: 'Moving back to Resident requires 0 active assigned dispatches. Past report history stays intact.' },
+        admin: { info: false, text: 'Administrator grants full system access. Any active dispatches must be reassigned or closed first.' }
+      }
+    );
 
     $all('[data-vol-edit]', mainEl).forEach(function (btn) {
       btn.addEventListener('click', function () {
@@ -3402,12 +3457,51 @@ header('X-Content-Type-Options: nosniff');
         var phoneEl = document.getElementById('vol-edit-phone');
         var addrEl = document.getElementById('vol-edit-address');
         var pwEl = document.getElementById('vol-edit-password');
+        var roleEl = document.getElementById('vol-edit-role');
         if (idEl) idEl.value = btn.getAttribute('data-id') || '';
         if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
         if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
         if (phoneEl) phoneEl.value = btn.getAttribute('data-phone') || '';
         if (addrEl) addrEl.value = btn.getAttribute('data-address') || '';
         if (pwEl) pwEl.value = '';
+        if (roleEl) {
+          roleEl.value = btn.getAttribute('data-role') || 'volunteer';
+          roleEl.dispatchEvent(new Event('change'));
+        }
+        syncVolRoleNote();
+      });
+    });
+
+    var syncAdmRoleNote = bindRoleNote(
+      document.getElementById('adm-role-select'),
+      document.getElementById('adm-role-note'),
+      document.getElementById('adm-role-msg'),
+      'admin',
+      {
+        volunteer: { info: true, text: 'This account will lose Administrator access and move to the Volunteers roster.' },
+        resident: { info: false, text: 'This account will lose Administrator access and move to the Residents directory.' }
+      }
+    );
+
+    $all('[data-adm-edit]', mainEl).forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var idEl = document.getElementById('adm-role-id');
+        var nameEl = document.getElementById('adm-role-name');
+        var emailEl = document.getElementById('adm-role-email');
+        var roleEl = document.getElementById('adm-role-select');
+        var statusEl = document.getElementById('adm-role-status');
+        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+        if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
+        if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
+        if (roleEl) {
+          roleEl.value = btn.getAttribute('data-role') || 'admin';
+          roleEl.dispatchEvent(new Event('change'));
+        }
+        if (statusEl) {
+          statusEl.value = btn.getAttribute('data-status') || 'active';
+          statusEl.dispatchEvent(new Event('change'));
+        }
+        syncAdmRoleNote();
       });
     });
 

@@ -52,18 +52,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $fullName = trim((string) ($_POST['full_name'] ?? ''));
         $phone = trim((string) ($_POST['phone'] ?? ''));
         $address = trim((string) ($_POST['address'] ?? ''));
+        $role = trim((string) ($_POST['role'] ?? 'resident'));
+        $allowedRoles = ['resident', 'volunteer', 'admin'];
 
         if ($id <= 0 || $fullName === '') {
             setFlash('Enter a valid full name for the resident.', 'error');
+        } elseif (!in_array($role, $allowedRoles, true)) {
+            setFlash('Choose a valid account role.', 'error');
         } else {
-            $upd = pdo()->prepare("UPDATE users SET full_name = ?, phone = ?, address = ? WHERE id = ? AND role = 'resident'");
+            $upd = pdo()->prepare("UPDATE users SET full_name = ?, phone = ?, address = ?, role = ? WHERE id = ? AND role = 'resident'");
             $upd->execute([
                 $fullName,
                 $phone !== '' ? $phone : null,
                 $address !== '' ? $address : null,
+                $role,
                 $id,
             ]);
-            setFlash('Resident profile updated.');
+            if ($role === 'volunteer') {
+                setFlash("{$fullName} promoted to Volunteer and moved to the Volunteers roster.");
+            } elseif ($role === 'admin') {
+                setFlash("{$fullName} granted Administrator access (manage in Settings → Admin Security).");
+            } else {
+                setFlash('Resident profile updated.');
+            }
         }
         redirectTo('admin/residents.php');
     }
@@ -250,7 +261,8 @@ require __DIR__ . '/../includes/header.php';
                   data-name="<?= e($resUser['full_name']) ?>"
                   data-email="<?= e($resUser['email']) ?>"
                   data-phone="<?= e($resUser['phone'] ?? '') ?>"
-                  data-address="<?= e($resUser['address'] ?? '') ?>">
+                  data-address="<?= e($resUser['address'] ?? '') ?>"
+                  data-role="<?= e($resUser['role']) ?>">
             <?= icon('edit', 14) ?> Edit
           </button>
           <form method="post" data-confirm="<?= $resUser['status'] === 'active' ? 'Deactivate this resident account? They will not be able to log in.' : 'Reactivate this resident account?' ?>">
@@ -346,6 +358,16 @@ require __DIR__ . '/../includes/header.php';
         </div>
         <label for="res-edit-address">Address / Purok</label>
         <input id="res-edit-address" name="address" placeholder="e.g. Purok 5">
+        <label for="res-edit-role">Account role</label>
+        <select id="res-edit-role" name="role">
+          <option value="resident">Resident</option>
+          <option value="volunteer">Volunteer (Responder)</option>
+          <option value="admin">Administrator</option>
+        </select>
+        <div class="role-change-note" id="res-edit-role-note" hidden>
+          <?= icon('alert', 16) ?>
+          <span id="res-edit-role-msg"></span>
+        </div>
       </div>
       <div class="modal-foot">
         <button type="button" class="btn ghost" data-modal-close>Cancel</button>
