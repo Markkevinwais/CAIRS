@@ -433,9 +433,8 @@ header('X-Content-Type-Options: nosniff');
 
   // <form data-confirm="Are you sure?"> asks first, using a styled dialog
   function initConfirmForms() {
-    $all('.spa-confirm-modal').forEach(function (el) { el.remove(); });
-    var forms = $all('form[data-confirm]');
-    if (!forms.length) return;
+    if (initConfirmForms._bound) return;
+    initConfirmForms._bound = true;
 
     var modal = document.createElement('div');
     modal.className = 'modal spa-confirm-modal';
@@ -451,13 +450,13 @@ header('X-Content-Type-Options: nosniff');
     document.body.appendChild(modal);
 
     var pendingForm = null;
-    forms.forEach(function (form) {
-      form.addEventListener('submit', function (e) {
-        e.preventDefault();
-        pendingForm = form;
-        $('#confirm-text', modal).textContent = form.getAttribute('data-confirm');
-        openModal(modal);
-      });
+    document.addEventListener('submit', function (e) {
+      var form = e.target;
+      if (!form || !form.matches || !form.matches('form[data-confirm]')) return;
+      e.preventDefault();
+      pendingForm = form;
+      $('#confirm-text', modal).textContent = form.getAttribute('data-confirm');
+      openModal(modal);
     });
     $('#confirm-yes', modal).addEventListener('click', function () {
       var form = pendingForm;
@@ -2545,12 +2544,192 @@ header('X-Content-Type-Options: nosniff');
     return root;
   }
 
+  function initPublicSpaNavigation() {
+    var navSeq = 0;
+    var lastPathQuery = window.location.pathname + window.location.search;
+    var progressBar = $('.spa-progress.is-public');
+    if (!progressBar && document.body) {
+      progressBar = document.createElement('div');
+      progressBar.className = 'spa-progress is-public';
+      progressBar.setAttribute('aria-hidden', 'true');
+      var barInner = document.createElement('div');
+      barInner.className = 'spa-progress-bar';
+      progressBar.appendChild(barInner);
+      document.body.appendChild(progressBar);
+    }
+
+    function navigatePublic(url, push) {
+      var parsed;
+      try { parsed = new URL(url, window.location.href); } catch (_) { window.location.href = url; return; }
+      var seq = ++navSeq;
+      var main = $('#main');
+      var curAuthPanel = main ? $('.auth-panel', main) : null;
+      var fadeEl = curAuthPanel || main;
+
+      if (progressBar) progressBar.classList.add('is-active');
+      if (fadeEl && !reduceMotion) {
+        fadeEl.style.transition = 'opacity .14s var(--ease)';
+        fadeEl.style.opacity = '0.72';
+      }
+
+      fetch(parsed.href, {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'fetch' }
+      })
+        .then(function (r) {
+          if (!r.ok) { window.location.href = parsed.href; return null; }
+          return r.text().then(function (html) { return { html: html, finalUrl: r.url || parsed.href }; });
+        })
+        .then(function (res) {
+          if (!res || seq !== navSeq) return;
+          var doc = new DOMParser().parseFromString(res.html, 'text/html');
+          if (!doc.body || !doc.body.classList.contains('public')) {
+            window.location.href = res.finalUrl;
+            return;
+          }
+
+          var newMain = doc.getElementById('main');
+          if (!main || !newMain) { window.location.href = res.finalUrl; return; }
+
+          document.title = doc.title;
+          var newMetaCsrf = doc.querySelector('meta[name="csrf-token"]');
+          var oldMetaCsrf = document.querySelector('meta[name="csrf-token"]');
+          if (newMetaCsrf && oldMetaCsrf) oldMetaCsrf.setAttribute('content', newMetaCsrf.getAttribute('content') || '');
+
+          var oldToastRegion = document.getElementById('toast-region');
+          var newToastRegion = doc.getElementById('toast-region');
+          if (oldToastRegion && newToastRegion) {
+            oldToastRegion.innerHTML = newToastRegion.innerHTML;
+          }
+
+          var curShell = $('.auth-shell', main);
+          var newShell = $('.auth-shell', newMain);
+          if (curShell && newShell) {
+            var curCopy = $('.auth-copy', curShell);
+            var newCopy = $('.auth-copy', newShell);
+            if (curCopy && newCopy) {
+              curCopy.innerHTML = newCopy.innerHTML;
+              if (!reduceMotion) {
+                curCopy.classList.remove('is-swapping');
+                void curCopy.offsetWidth;
+                curCopy.classList.add('is-swapping');
+              }
+            }
+            var newPanel = $('.auth-panel', newShell);
+            if (curAuthPanel && newPanel) {
+              curAuthPanel.style.opacity = '';
+              curAuthPanel.style.transition = '';
+              curAuthPanel.innerHTML = newPanel.innerHTML;
+            } else {
+              main.style.opacity = '';
+              main.style.transition = '';
+              main.innerHTML = newMain.innerHTML;
+            }
+          } else {
+            if (curAuthPanel) {
+              curAuthPanel.style.opacity = '';
+              curAuthPanel.style.transition = '';
+            }
+            main.style.opacity = '';
+            main.style.transition = '';
+            main.innerHTML = newMain.innerHTML;
+          }
+
+          if (progressBar) progressBar.classList.remove('is-active');
+
+          var dest = new URL(res.finalUrl, window.location.href);
+          if (parsed.hash && !dest.hash) dest.hash = parsed.hash;
+          lastPathQuery = dest.pathname + dest.search;
+          if (push) history.pushState({ spaPublic: true }, '', dest.pathname + dest.search + dest.hash);
+
+          try { initPage(true); } catch (err) { if (window.console && console.error) console.error(err); }
+          try { initLandingNav(); } catch (err) { if (window.console && console.error) console.error(err); }
+          try { initAuthForms(); } catch (err) { if (window.console && console.error) console.error(err); }
+
+          if (dest.hash) {
+            var target = document.getElementById(dest.hash.slice(1));
+            if (target) target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+          } else {
+            window.scrollTo(0, 0);
+          }
+
+          var autoInput = $('[autofocus]', main);
+          if (autoInput && autoInput.focus) {
+            try { autoInput.focus({ preventScroll: true }); } catch (_) { autoInput.focus(); }
+          }
+          window.dispatchEvent(new Event('resize'));
+        })
+        .catch(function () {
+          if (progressBar) progressBar.classList.remove('is-active');
+          if (fadeEl) {
+            fadeEl.style.opacity = '';
+            fadeEl.style.transition = '';
+          }
+          window.location.href = parsed.href;
+        });
+    }
+
+    document.addEventListener('click', function (e) {
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var a = e.target.closest ? e.target.closest('a[href]') : null;
+      if (!a) return;
+      if (a.hasAttribute('download') || (a.getAttribute('target') && a.getAttribute('target') !== '_self')) return;
+
+      var rawHref = a.getAttribute('href') || '';
+      if (!rawHref || rawHref.charAt(0) === '#' || rawHref.indexOf('mailto:') === 0 || rawHref.indexOf('tel:') === 0) return;
+
+      var url;
+      try { url = new URL(a.href, window.location.href); } catch (_) { return; }
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname.indexOf('/logout') !== -1) return;
+
+      if (url.pathname === window.location.pathname && url.search === window.location.search) {
+        if (url.hash) {
+          var hashTarget = document.getElementById(url.hash.slice(1));
+          if (url.hash === window.location.hash) {
+            e.preventDefault();
+            if (hashTarget) hashTarget.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+          }
+          return;
+        }
+        e.preventDefault();
+        if (window.location.hash) {
+          history.replaceState(history.state, '', url.pathname + url.search);
+        }
+        window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+        return;
+      }
+
+      e.preventDefault();
+      navigatePublic(url.href, true);
+    });
+
+    window.addEventListener('popstate', function () {
+      var curPathQuery = window.location.pathname + window.location.search;
+      if (curPathQuery === lastPathQuery) {
+        if (window.location.hash) {
+          var target = document.getElementById(window.location.hash.slice(1));
+          if (target) target.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth' });
+        } else {
+          window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+        }
+        return;
+      }
+      navigatePublic(window.location.href, false);
+    });
+  }
+
   function initSpaNavigation() {
     if (!window.history || !window.history.pushState || !window.fetch || !window.DOMParser) return;
+    if (document.body.classList.contains('public')) {
+      initPublicSpaNavigation();
+      return;
+    }
     if (!document.body.classList.contains('app')) return;
 
     var navSeq = 0;
     var lastSpaPathQuery = window.location.pathname + window.location.search;
+    var lastSpaPathOnly = window.location.pathname;
     var mainWrap = $('.main');
     var progressBar = mainWrap ? $('.spa-progress', mainWrap) : null;
     if (mainWrap && !progressBar) {
@@ -2563,9 +2742,191 @@ header('X-Content-Type-Options: nosniff');
       mainWrap.appendChild(progressBar);
     }
 
+    var filterSeq = 0;
+    var filterDebounce = null;
+    var filterBarTimer = null;
+    var activeFilterCtrl = null;
+    var isSyncingFilterControls = false;
+    var lastFilterSig = '';
+
+    function serializeFilterForm(form) {
+      return form ? new URLSearchParams(new FormData(form)).toString() : '';
+    }
+
+    function syncInitialFilterSig() {
+      var curForm = $('form.filters', $('#main'));
+      lastFilterSig = serializeFilterForm(curForm);
+    }
+    syncInitialFilterSig();
+
+    function buildFilterUrl(form) {
+      var action = form.getAttribute('action') || window.location.pathname;
+      var url = new URL(action, window.location.href);
+      url.search = new URLSearchParams(new FormData(form)).toString();
+      return url;
+    }
+
+    function resolveFilterResults(form) {
+      if (!form) return null;
+      var next = form.nextElementSibling;
+      if (!next) return null;
+      if (next.classList.contains('two')) return next.firstElementChild || next;
+      return next;
+    }
+
+    function syncFilterControls(curForm, newForm) {
+      if (!curForm || !newForm) return;
+      isSyncingFilterControls = true;
+      try {
+        $all('[name]', curForm).forEach(function (field) {
+          var name = field.getAttribute('name');
+          if (!name) return;
+          var match = null;
+          $all('[name]', newForm).forEach(function (nf) {
+            if (!match && nf.getAttribute('name') === name) match = nf;
+          });
+          if (!match) return;
+          if (field.tagName === 'SELECT') {
+            if (field.value !== match.value) {
+              field.value = match.value;
+              field.dispatchEvent(new Event('change', { bubbles: false }));
+            }
+          } else if (field.type === 'checkbox' || field.type === 'radio') {
+            field.checked = match.checked;
+          } else {
+            field.value = match.value;
+          }
+        });
+      } finally {
+        isSyncingFilterControls = false;
+      }
+    }
+
+    function syncFilterResetLink(curForm, newForm) {
+      if (!curForm || !newForm) return;
+      var curReset = $('a.btn.ghost[href]', curForm);
+      var newReset = $('a.btn.ghost[href]', newForm);
+      if (newReset && !curReset) {
+        var cloneReset = document.importNode(newReset, true);
+        var anchor = $('.filters-end', curForm) || $('> .filters-count', curForm);
+        if (anchor && anchor.parentNode === curForm) curForm.insertBefore(cloneReset, anchor);
+        else curForm.appendChild(cloneReset);
+      } else if (newReset && curReset) {
+        curReset.setAttribute('href', newReset.getAttribute('href') || curReset.getAttribute('href'));
+      } else if (!newReset && curReset) {
+        curReset.remove();
+      }
+    }
+
+    function applyLiveFilter(targetUrl, form, opts) {
+      opts = opts || {};
+      if (!form) { navigate(targetUrl.href, !!opts.pushHistory); return; }
+      var nextSig = serializeFilterForm(form);
+      if (!opts.force && !opts.syncControls && nextSig === lastFilterSig) return;
+
+      var resultsEl = resolveFilterResults(form);
+      if (!resultsEl) { navigate(targetUrl.href, !!opts.pushHistory); return; }
+
+      if (activeFilterCtrl) activeFilterCtrl.abort();
+      activeFilterCtrl = window.AbortController ? new AbortController() : null;
+      var seq = ++filterSeq;
+
+      resultsEl.classList.add('is-filtering');
+      clearTimeout(filterBarTimer);
+      filterBarTimer = setTimeout(function () {
+        if (seq === filterSeq && progressBar) progressBar.classList.add('is-active');
+      }, 90);
+
+      fetch(targetUrl.href, {
+        credentials: 'same-origin',
+        headers: { 'X-Requested-With': 'fetch' },
+        signal: activeFilterCtrl ? activeFilterCtrl.signal : undefined
+      })
+        .then(function (r) {
+          if (!r.ok) { window.location.href = targetUrl.href; return null; }
+          return r.text().then(function (html) { return { html: html, finalUrl: r.url || targetUrl.href }; });
+        })
+        .then(function (res) {
+          clearTimeout(filterBarTimer);
+          if (progressBar) progressBar.classList.remove('is-active');
+          if (!res || seq !== filterSeq) return;
+
+          var doc = new DOMParser().parseFromString(res.html, 'text/html');
+          if (!doc.body || !doc.body.classList.contains('app')) {
+            window.location.href = res.finalUrl;
+            return;
+          }
+
+          var main = $('#main');
+          var newMain = doc.getElementById('main');
+          var newForm = newMain ? $('form.filters', newMain) : null;
+          var newResults = resolveFilterResults(newForm);
+          if (!main || !newMain || !newForm || !newResults) {
+            window.location.href = res.finalUrl;
+            return;
+          }
+
+          var newMetaCsrf = doc.querySelector('meta[name="csrf-token"]');
+          var oldMetaCsrf = document.querySelector('meta[name="csrf-token"]');
+          if (newMetaCsrf && oldMetaCsrf) oldMetaCsrf.setAttribute('content', newMetaCsrf.getAttribute('content') || '');
+
+          if (opts.syncControls) syncFilterControls(form, newForm);
+
+          var curCount = $('.filters-count', form);
+          var newCount = $('.filters-count', newForm);
+          if (curCount && newCount) curCount.textContent = newCount.textContent;
+
+          syncFilterResetLink(form, newForm);
+
+          var curSub = $('.page-head-sub', main);
+          var newSub = $('.page-head-sub', newMain);
+          if (curSub && newSub) curSub.textContent = newSub.textContent;
+
+          var curExport = $('.page-actions a[href*="export="]', main);
+          var newExport = $('.page-actions a[href*="export="]', newMain);
+          if (curExport && newExport) curExport.setAttribute('href', newExport.getAttribute('href') || '');
+
+          resultsEl.classList.remove('is-filtering');
+          resultsEl.classList.toggle('has-mobile-cards', newResults.classList.contains('has-mobile-cards'));
+          resultsEl.innerHTML = newResults.innerHTML;
+          if (!reduceMotion) {
+            resultsEl.classList.remove('is-filter-entering');
+            void resultsEl.offsetWidth;
+            resultsEl.classList.add('is-filter-entering');
+          }
+
+          if (main._rebindDynamic) {
+            try { main._rebindDynamic(resultsEl); } catch (err) { if (window.console && console.error) console.error(err); }
+          }
+
+          var dest = new URL(res.finalUrl, window.location.href);
+          lastSpaPathQuery = dest.pathname + dest.search;
+          lastSpaPathOnly = dest.pathname;
+          lastFilterSig = serializeFilterForm(form);
+
+          if (!opts.skipHistory) {
+            if (opts.pushHistory) history.pushState({ spa: true }, '', dest.pathname + dest.search + dest.hash);
+            else history.replaceState({ spa: true }, '', dest.pathname + dest.search + dest.hash);
+          }
+
+          window.dispatchEvent(new Event('resize'));
+        })
+        .catch(function (err) {
+          clearTimeout(filterBarTimer);
+          if (progressBar) progressBar.classList.remove('is-active');
+          resultsEl.classList.remove('is-filtering');
+          if (err && err.name === 'AbortError') return;
+          window.location.href = targetUrl.href;
+        });
+    }
+
     function navigate(url, push) {
       var parsed;
       try { parsed = new URL(url, window.location.href); } catch (_) { window.location.href = url; return; }
+      clearTimeout(filterDebounce);
+      clearTimeout(filterBarTimer);
+      if (activeFilterCtrl) { activeFilterCtrl.abort(); activeFilterCtrl = null; }
+      filterSeq++;
       var seq = ++navSeq;
       var main = $('#main');
       if (progressBar) progressBar.classList.add('is-active');
@@ -2650,10 +3011,12 @@ header('X-Content-Type-Options: nosniff');
           var dest = new URL(res.finalUrl, window.location.href);
           if (parsed.hash && !dest.hash) dest.hash = parsed.hash;
           lastSpaPathQuery = dest.pathname + dest.search;
+          lastSpaPathOnly = dest.pathname;
           if (push) history.pushState({ spa: true }, '', dest.pathname + dest.search + dest.hash);
 
           try { runMainScripts(main); } catch (err) { if (window.console && console.error) console.error(err); }
           try { initPage(true); } catch (err) { if (window.console && console.error) console.error(err); }
+          syncInitialFilterSig();
 
           if (dest.hash) {
             var target = document.getElementById(dest.hash.slice(1));
@@ -2689,6 +3052,17 @@ header('X-Content-Type-Options: nosniff');
       if (url.origin !== window.location.origin) return;
       if (url.pathname.indexOf('/logout') !== -1 || url.search.indexOf('export=') !== -1) return;
 
+      // Partial filter Reset / Clear filters on the same page
+      if (url.pathname === window.location.pathname && !url.hash && a.closest && a.closest('form.filters, .empty-state')) {
+        var curFilterForm = $('form.filters', $('#main'));
+        if (curFilterForm) {
+          e.preventDefault();
+          clearTimeout(filterDebounce);
+          applyLiveFilter(url, curFilterForm, { pushHistory: true, syncControls: true, force: true });
+          return;
+        }
+      }
+
       // Same path & query: avoid re-fetching or duplicating history; scroll smoothly instead
       if (url.pathname === window.location.pathname && url.search === window.location.search) {
         if (a.closest && a.closest('.sidebar nav') && sidebarNavApi) {
@@ -2720,16 +3094,59 @@ header('X-Content-Type-Options: nosniff');
       navigate(url.href, true);
     });
 
-    // Smooth GET filter/search forms
+    // Live dropdown + debounced search filtering inside form.filters
+    document.addEventListener('change', function (e) {
+      if (isSyncingFilterControls) return;
+      var sel = e.target;
+      if (!sel || sel.tagName !== 'SELECT') return;
+      var form = sel.closest ? sel.closest('form.filters') : null;
+      if (!form || (form.getAttribute('method') || 'get').toLowerCase() !== 'get') return;
+      var url = buildFilterUrl(form);
+      if (url.pathname !== window.location.pathname) return;
+      clearTimeout(filterDebounce);
+      applyLiveFilter(url, form, { pushHistory: false, syncControls: false });
+    });
+
+    document.addEventListener('input', function (e) {
+      if (isSyncingFilterControls) return;
+      var inp = e.target;
+      if (!inp || inp.tagName !== 'INPUT') return;
+      var form = inp.closest ? inp.closest('form.filters') : null;
+      if (!form || (form.getAttribute('method') || 'get').toLowerCase() !== 'get') return;
+      var url = buildFilterUrl(form);
+      if (url.pathname !== window.location.pathname) return;
+      clearTimeout(filterDebounce);
+      filterDebounce = setTimeout(function () {
+        applyLiveFilter(buildFilterUrl(form), form, { pushHistory: false, syncControls: false });
+      }, 260);
+    });
+
+    document.addEventListener('keydown', function (e) {
+      if (e.key !== 'Escape') return;
+      var inp = e.target;
+      if (!inp || inp.tagName !== 'INPUT' || !inp.value) return;
+      var form = inp.closest ? inp.closest('form.filters') : null;
+      if (!form || (form.getAttribute('method') || 'get').toLowerCase() !== 'get') return;
+      var url = buildFilterUrl(form);
+      if (url.pathname !== window.location.pathname) return;
+      e.preventDefault();
+      inp.value = '';
+      clearTimeout(filterDebounce);
+      applyLiveFilter(buildFilterUrl(form), form, { pushHistory: false, syncControls: false });
+    });
+
+    // Smooth GET filter/search forms (partial in-place update on same page, full SPA nav across routes)
     document.addEventListener('submit', function (e) {
       var form = e.target;
       if (!form || (form.getAttribute('method') || 'get').toLowerCase() !== 'get') return;
       if (form.hasAttribute('data-confirm')) return;
-      var action = form.getAttribute('action') || window.location.pathname;
-      var url = new URL(action, window.location.href);
-      var params = new URLSearchParams(new FormData(form));
-      url.search = params.toString();
+      var url = buildFilterUrl(form);
       e.preventDefault();
+      if (form.classList.contains('filters') && url.pathname === window.location.pathname) {
+        clearTimeout(filterDebounce);
+        applyLiveFilter(url, form, { pushHistory: false, syncControls: false });
+        return;
+      }
       navigate(url.href, true);
     });
 
@@ -2748,6 +3165,14 @@ header('X-Content-Type-Options: nosniff');
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
         return;
+      }
+      if (window.location.pathname === lastSpaPathOnly) {
+        var curFilterForm = $('form.filters', $('#main'));
+        if (curFilterForm) {
+          clearTimeout(filterDebounce);
+          applyLiveFilter(new URL(window.location.href), curFilterForm, { pushHistory: false, syncControls: true, skipHistory: true, force: true });
+          return;
+        }
       }
       navigate(window.location.href, false);
     });
@@ -3484,26 +3909,31 @@ header('X-Content-Type-Options: nosniff');
       }
     );
 
-    $all('[data-res-edit]', mainEl).forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var idEl = document.getElementById('res-edit-id');
-        var nameEl = document.getElementById('res-edit-name');
-        var emailEl = document.getElementById('res-edit-email');
-        var phoneEl = document.getElementById('res-edit-phone');
-        var addrEl = document.getElementById('res-edit-address');
-        var roleEl = document.getElementById('res-edit-role');
-        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
-        if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
-        if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
-        if (phoneEl) phoneEl.value = btn.getAttribute('data-phone') || '';
-        if (addrEl) addrEl.value = btn.getAttribute('data-address') || '';
-        if (roleEl) {
-          roleEl.value = btn.getAttribute('data-role') || 'resident';
-          roleEl.dispatchEvent(new Event('change'));
-        }
-        syncResRoleNote();
+    function bindResEditButtons(scope) {
+      $all('[data-res-edit]', scope).forEach(function (btn) {
+        if (btn.dataset.wsBound === '1') return;
+        btn.dataset.wsBound = '1';
+        btn.addEventListener('click', function () {
+          var idEl = document.getElementById('res-edit-id');
+          var nameEl = document.getElementById('res-edit-name');
+          var emailEl = document.getElementById('res-edit-email');
+          var phoneEl = document.getElementById('res-edit-phone');
+          var addrEl = document.getElementById('res-edit-address');
+          var roleEl = document.getElementById('res-edit-role');
+          if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+          if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
+          if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
+          if (phoneEl) phoneEl.value = btn.getAttribute('data-phone') || '';
+          if (addrEl) addrEl.value = btn.getAttribute('data-address') || '';
+          if (roleEl) {
+            roleEl.value = btn.getAttribute('data-role') || 'resident';
+            roleEl.dispatchEvent(new Event('change'));
+          }
+          syncResRoleNote();
+        });
       });
-    });
+    }
+    bindResEditButtons(mainEl);
 
     var syncVolRoleNote = bindRoleNote(
       document.getElementById('vol-edit-role'),
@@ -3516,28 +3946,33 @@ header('X-Content-Type-Options: nosniff');
       }
     );
 
-    $all('[data-vol-edit]', mainEl).forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var idEl = document.getElementById('vol-edit-id');
-        var nameEl = document.getElementById('vol-edit-name');
-        var emailEl = document.getElementById('vol-edit-email');
-        var phoneEl = document.getElementById('vol-edit-phone');
-        var addrEl = document.getElementById('vol-edit-address');
-        var pwEl = document.getElementById('vol-edit-password');
-        var roleEl = document.getElementById('vol-edit-role');
-        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
-        if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
-        if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
-        if (phoneEl) phoneEl.value = btn.getAttribute('data-phone') || '';
-        if (addrEl) addrEl.value = btn.getAttribute('data-address') || '';
-        if (pwEl) pwEl.value = '';
-        if (roleEl) {
-          roleEl.value = btn.getAttribute('data-role') || 'volunteer';
-          roleEl.dispatchEvent(new Event('change'));
-        }
-        syncVolRoleNote();
+    function bindVolEditButtons(scope) {
+      $all('[data-vol-edit]', scope).forEach(function (btn) {
+        if (btn.dataset.wsBound === '1') return;
+        btn.dataset.wsBound = '1';
+        btn.addEventListener('click', function () {
+          var idEl = document.getElementById('vol-edit-id');
+          var nameEl = document.getElementById('vol-edit-name');
+          var emailEl = document.getElementById('vol-edit-email');
+          var phoneEl = document.getElementById('vol-edit-phone');
+          var addrEl = document.getElementById('vol-edit-address');
+          var pwEl = document.getElementById('vol-edit-password');
+          var roleEl = document.getElementById('vol-edit-role');
+          if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+          if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
+          if (emailEl) emailEl.value = btn.getAttribute('data-email') || '';
+          if (phoneEl) phoneEl.value = btn.getAttribute('data-phone') || '';
+          if (addrEl) addrEl.value = btn.getAttribute('data-address') || '';
+          if (pwEl) pwEl.value = '';
+          if (roleEl) {
+            roleEl.value = btn.getAttribute('data-role') || 'volunteer';
+            roleEl.dispatchEvent(new Event('change'));
+          }
+          syncVolRoleNote();
+        });
       });
-    });
+    }
+    bindVolEditButtons(mainEl);
 
     var syncAdmRoleNote = bindRoleNote(
       document.getElementById('adm-role-select'),
@@ -3615,116 +4050,123 @@ header('X-Content-Type-Options: nosniff');
       syncAnnComposer();
     }
 
-    $all('[data-ann-edit]', mainEl).forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var idEl = document.getElementById('ann-edit-id');
-        var tEl = document.getElementById('ann-edit-title');
-        var lEl = document.getElementById('ann-edit-level');
-        var bEl = document.getElementById('ann-edit-body');
-        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
-        if (tEl) tEl.value = btn.getAttribute('data-title') || '';
-        if (bEl) {
-          bEl.value = btn.getAttribute('data-body') || '';
-          requestAnimationFrame(function () { bEl.dispatchEvent(new Event('autosize')); });
-        }
-        if (lEl) {
-          lEl.value = btn.getAttribute('data-level') || 'info';
-          lEl.dispatchEvent(new Event('change'));
-        }
+    function bindAnnResultActions(scope) {
+      $all('[data-ann-edit]', scope).forEach(function (btn) {
+        if (btn.dataset.wsBound === '1') return;
+        btn.dataset.wsBound = '1';
+        btn.addEventListener('click', function () {
+          var idEl = document.getElementById('ann-edit-id');
+          var tEl = document.getElementById('ann-edit-title');
+          var lEl = document.getElementById('ann-edit-level');
+          var bEl = document.getElementById('ann-edit-body');
+          if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+          if (tEl) tEl.value = btn.getAttribute('data-title') || '';
+          if (bEl) {
+            bEl.value = btn.getAttribute('data-body') || '';
+            requestAnimationFrame(function () { bEl.dispatchEvent(new Event('autosize')); });
+          }
+          if (lEl) {
+            lEl.value = btn.getAttribute('data-level') || 'info';
+            lEl.dispatchEvent(new Event('change'));
+          }
+        });
       });
-    });
 
-    $all('form[data-ann-toggle]', mainEl).forEach(function (form) {
-      form.addEventListener('submit', function (e) {
-        if (!window.fetch) return;
-        e.preventDefault();
-        if (form.dataset.busy === '1') return;
+      $all('form[data-ann-toggle]', scope).forEach(function (form) {
+        if (form.dataset.wsBound === '1') return;
+        form.dataset.wsBound = '1';
+        form.addEventListener('submit', function (e) {
+          if (!window.fetch) return;
+          e.preventDefault();
+          if (form.dataset.busy === '1') return;
 
-        var btn = $('button[type="submit"]', form);
-        var card = form.closest ? form.closest('article.ann') : null;
-        var tag = card ? $('.ann-state-tag', card) : null;
-        var origText = btn ? btn.textContent : '';
+          var btn = $('button[type="submit"]', form);
+          var card = form.closest ? form.closest('article.ann') : null;
+          var tag = card ? $('.ann-state-tag', card) : null;
+          var origText = btn ? btn.textContent : '';
 
-        form.dataset.busy = '1';
-        if (btn) {
-          btn.disabled = true;
-          btn.setAttribute('aria-busy', 'true');
-        }
+          form.dataset.busy = '1';
+          if (btn) {
+            btn.disabled = true;
+            btn.setAttribute('aria-busy', 'true');
+          }
 
-        fetch(form.getAttribute('action') || window.location.pathname, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: {
-            'Accept': 'application/json',
-            'X-Requested-With': 'fetch',
-            'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
-          },
-          body: new URLSearchParams(new FormData(form))
-        })
-          .then(function (r) {
-            return r.text().then(function (txt) {
-              var data = null;
-              try { data = JSON.parse(txt); } catch (_) {}
-              return { ok: r.ok, status: r.status, data: data };
-            });
+          fetch(form.getAttribute('action') || window.location.pathname, {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: {
+              'Accept': 'application/json',
+              'X-Requested-With': 'fetch',
+              'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8'
+            },
+            body: new URLSearchParams(new FormData(form))
           })
-          .then(function (res) {
-            if (!res.ok || !res.data || !res.data.ok) {
-              var errMsg = (res.data && res.data.error) || 'Could not update announcement visibility.';
-              showToast(errMsg, 'error');
-              if (res.status === 419) setTimeout(function () { window.location.reload(); }, 900);
-              return;
-            }
-            var isLive = !!res.data.is_active;
-            if (card) card.classList.toggle('is-off', !isLive);
-            if (tag) {
-              tag.classList.toggle('is-hidden', !isLive);
-              tag.textContent = isLive ? 'Live' : 'Hidden';
-            }
-            if (btn) btn.textContent = isLive ? 'Hide' : 'Show again';
-
-            var statsEl = document.getElementById('ann-stats');
-            if (statsEl && res.data.counts) {
-              var cards = $all('.stat', statsEl);
-              var map = [
-                ['total', null],
-                ['live', null],
-                ['hidden', 'tone-warning', 'tone-muted'],
-                ['critical', 'tone-danger', 'tone-muted']
-              ];
-              map.forEach(function (spec, idx) {
-                var sc = cards[idx];
-                if (!sc) return;
-                var val = res.data.counts[spec[0]];
-                if (typeof val === 'number') {
-                  var b = $('b', sc);
-                  if (b) {
-                    b.dataset.staticLock = '1';
-                    b.textContent = String(val);
-                  }
-                  if (spec[1] && spec[2]) {
-                    sc.classList.toggle(spec[1], val > 0);
-                    sc.classList.toggle(spec[2], val <= 0);
-                  }
-                }
+            .then(function (r) {
+              return r.text().then(function (txt) {
+                var data = null;
+                try { data = JSON.parse(txt); } catch (_) {}
+                return { ok: r.ok, status: r.status, data: data };
               });
-            }
+            })
+            .then(function (res) {
+              if (!res.ok || !res.data || !res.data.ok) {
+                var errMsg = (res.data && res.data.error) || 'Could not update announcement visibility.';
+                showToast(errMsg, 'error');
+                if (res.status === 419) setTimeout(function () { window.location.reload(); }, 900);
+                return;
+              }
+              var isLive = !!res.data.is_active;
+              if (card) card.classList.toggle('is-off', !isLive);
+              if (tag) {
+                tag.classList.toggle('is-hidden', !isLive);
+                tag.textContent = isLive ? 'Live' : 'Hidden';
+              }
+              if (btn) btn.textContent = isLive ? 'Hide' : 'Show again';
 
-            showToast(res.data.message || 'Announcement visibility updated.');
-          })
-          .catch(function () {
-            if (btn && origText) btn.textContent = origText;
-            showToast('Network error updating announcement visibility.', 'error');
-          })
-          .finally(function () {
-            form.dataset.busy = '0';
-            if (btn) {
-              btn.disabled = false;
-              btn.removeAttribute('aria-busy');
-            }
-          });
+              var statsEl = document.getElementById('ann-stats');
+              if (statsEl && res.data.counts) {
+                var cards = $all('.stat', statsEl);
+                var map = [
+                  ['total', null],
+                  ['live', null],
+                  ['hidden', 'tone-warning', 'tone-muted'],
+                  ['critical', 'tone-danger', 'tone-muted']
+                ];
+                map.forEach(function (spec, idx) {
+                  var sc = cards[idx];
+                  if (!sc) return;
+                  var val = res.data.counts[spec[0]];
+                  if (typeof val === 'number') {
+                    var b = $('b', sc);
+                    if (b) {
+                      b.dataset.staticLock = '1';
+                      b.textContent = String(val);
+                    }
+                    if (spec[1] && spec[2]) {
+                      sc.classList.toggle(spec[1], val > 0);
+                      sc.classList.toggle(spec[2], val <= 0);
+                    }
+                  }
+                });
+              }
+
+              showToast(res.data.message || 'Announcement visibility updated.');
+            })
+            .catch(function () {
+              if (btn && origText) btn.textContent = origText;
+              showToast('Network error updating announcement visibility.', 'error');
+            })
+            .finally(function () {
+              form.dataset.busy = '0';
+              if (btn) {
+                btn.disabled = false;
+                btn.removeAttribute('aria-busy');
+              }
+            });
+        });
       });
-    });
+    }
+    bindAnnResultActions(mainEl);
 
     // 14e. Categories: live auto-priority prediction & edit modal
     var HIGH_CATS = ['fire', 'medical emergency', 'flood', 'road accident', 'theft / crime'];
@@ -3744,17 +4186,30 @@ header('X-Content-Type-Options: nosniff');
     bindCatPrioPreview(document.getElementById('cat-add-name'), document.getElementById('cat-prio-badge'));
     var syncEditCatPrio = bindCatPrioPreview(document.getElementById('cat-edit-name'), document.getElementById('cat-edit-prio-badge'));
 
-    $all('[data-cat-edit]', mainEl).forEach(function (btn) {
-      btn.addEventListener('click', function () {
-        var idEl = document.getElementById('cat-edit-id');
-        var nameEl = document.getElementById('cat-edit-name');
-        var sosEl = document.getElementById('cat-edit-sos-note');
-        if (idEl) idEl.value = btn.getAttribute('data-id') || '';
-        if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
-        if (sosEl) sosEl.hidden = btn.getAttribute('data-sos') !== '1';
-        if (syncEditCatPrio) syncEditCatPrio();
+    function bindCatEditButtons(scope) {
+      $all('[data-cat-edit]', scope).forEach(function (btn) {
+        if (btn.dataset.wsBound === '1') return;
+        btn.dataset.wsBound = '1';
+        btn.addEventListener('click', function () {
+          var idEl = document.getElementById('cat-edit-id');
+          var nameEl = document.getElementById('cat-edit-name');
+          var sosEl = document.getElementById('cat-edit-sos-note');
+          if (idEl) idEl.value = btn.getAttribute('data-id') || '';
+          if (nameEl) nameEl.value = btn.getAttribute('data-name') || '';
+          if (sosEl) sosEl.hidden = btn.getAttribute('data-sos') !== '1';
+          if (syncEditCatPrio) syncEditCatPrio();
+        });
       });
-    });
+    }
+    bindCatEditButtons(mainEl);
+
+    mainEl._rebindDynamic = function (scope) {
+      if (!scope) return;
+      bindResEditButtons(scope);
+      bindVolEditButtons(scope);
+      bindAnnResultActions(scope);
+      bindCatEditButtons(scope);
+    };
 
     // 14f. Settings workspace tabs, live hotline preview, SMS counter, password strength
     var settingsNav = $('.settings-nav', mainEl);
@@ -4084,14 +4539,17 @@ header('X-Content-Type-Options: nosniff');
   }
 
   function initLandingNav() {
-    var nav = $('.landing-nav');
-    if (!nav) return;
     function sync() {
+      var nav = $('.landing-nav');
+      if (!nav) return;
       var y = window.scrollY || window.pageYOffset || 0;
       nav.classList.toggle('is-scrolled', y > 8);
     }
     sync();
-    window.addEventListener('scroll', sync, { passive: true });
+    if (!initLandingNav._bound) {
+      initLandingNav._bound = true;
+      window.addEventListener('scroll', sync, { passive: true });
+    }
   }
 
 

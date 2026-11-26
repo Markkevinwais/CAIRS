@@ -402,12 +402,11 @@ function renderBars(array $dataObj, array $tones = []): string
     if (!$dataObj) return '<p class="empty">No data yet.</p>';
     $values = array_map('intval', array_values($dataObj));
     $total = max(1, array_sum($values));
-    $max = max(1, ...$values);
     $html = '';
     foreach ($dataObj as $label => $raw) {
         $n = (int) $raw;
         $pct = (int) round(($n / $total) * 100);
-        $w = $n > 0 ? max(3, (int) round(($n / $max) * 100)) : 0;
+        $w = $n > 0 ? max(3, $pct) : 0;
         $barStyle = $n > 0 ? 'width:' . $w . '%' : 'width:0;min-width:0';
         $html .= '<div class="bar" title="' . e(statusLabel((string) $label)) . ': ' . $n . ' (' . $pct . '%)"><span class="l">' . e(statusLabel((string) $label)) . '</span><span class="track"><i class="tone-' . e($tones[$label] ?? 'primary') . '" style="' . $barStyle . '"></i></span><b>' . $n . '</b><em>' . $pct . '%</em></div>';
     }

@@ -182,7 +182,7 @@ body.public .content{max-width:none;margin:0;padding:0}
 .bar{display:grid;grid-template-columns:minmax(145px,220px) minmax(80px,1fr) 36px 46px;align-items:center;gap:12px;padding:6px 8px;margin:4px 0;font-size:.9rem;font-variant-numeric:tabular-nums;border-radius:8px;transition:background .2s var(--ease)}
 .bar:hover{background:var(--surface-hover)}
 .bar .l{line-height:1.3;overflow-wrap:break-word}
-.bar .track{height:10px;overflow:hidden;border-radius:99px;background:#eef1f5}
+.bar .track{height:10px;overflow:hidden;border-radius:99px;background:#dce3ec;box-shadow:inset 0 0 0 1px rgba(15,23,42,.12)}
 .bar i{display:block;height:100%;min-width:4px;border-radius:99px;background:var(--tone,var(--primary))}
 .bar b{text-align:right;font-variant-numeric:tabular-nums}
 .bar em{font-style:normal;color:var(--text-muted);font-size:.82rem;text-align:right;font-variant-numeric:tabular-nums}
@@ -1917,7 +1917,7 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
 .meter{display:flex;flex-direction:column;gap:6px;min-width:130px;font-variant-numeric:tabular-nums}
 .meter-top{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:.8rem;font-weight:600;color:#0f172a;white-space:nowrap}
 .meter-top small{font-size:.76rem;font-weight:600;color:#334155}
-.meter-track{height:7px;border-radius:99px;background:#e2e8f0;overflow:hidden}
+.meter-track{height:7px;border-radius:99px;background:#dce3ec;box-shadow:inset 0 0 0 1px rgba(15,23,42,.1);overflow:hidden}
 .meter-fill{display:block;height:100%;border-radius:99px;background:var(--primary);transition:width .25s var(--ease)}
 .meter-fill.tone-success{background:var(--success)}
 .meter-fill.tone-warning{background:var(--warning)}
@@ -2178,6 +2178,8 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
   opacity:0;
   transition:opacity .16s var(--ease);
 }
+.spa-progress.is-public{position:fixed;z-index:250}
+.auth-copy.is-swapping{animation:rise .22s var(--ease) backwards}
 .spa-progress.is-active{opacity:1}
 .spa-progress-bar{
   width:42%;
@@ -2326,8 +2328,12 @@ body.has-modal .sos-fab{filter:blur(3px) brightness(.9);pointer-events:none;user
   .sk-stats,.sk-stats.sk-stats-3{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
-  .spa-progress-bar,.sk-shimmer,.map-skeleton-dot{animation:none!important}
+  .spa-progress-bar,.sk-shimmer,.map-skeleton-dot,.is-filter-entering{animation:none!important}
 }
+
+.is-filtering{opacity:.58;transition:opacity .14s var(--ease);pointer-events:none}
+@keyframes filter-enter{from{opacity:0;transform:translateY(4px)}}
+.is-filter-entering{animation:filter-enter .18s var(--ease) backwards}
 
 /* 30. MAP PLACE & COORDINATE SEARCH + LOCATING STATE -------------------- */
 .map-search-bar{
