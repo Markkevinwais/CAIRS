@@ -32,11 +32,6 @@ require __DIR__ . '/includes/header.php';
         <span class="brand-mark"><?= icon('shield', 20) ?></span>
         <span class="brand-name"><?= e($site) ?></span>
       </a>
-      <nav class="landing-links" aria-label="Page sections">
-        <?php if ($landingAdvisories): ?><a href="#advisories">Advisories</a><?php endif; ?>
-        <a href="#how-it-works">How it works</a>
-        <?php if ($landingHotlines): ?><a href="#hotlines">Hotlines</a><?php endif; ?>
-      </nav>
       <div class="landing-nav-actions">
         <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
           <span class="theme-ic-sun" aria-hidden="true"><?= icon('sun', 18) ?></span>
