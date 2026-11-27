@@ -140,6 +140,7 @@ body.public .content{max-width:none;margin:0;padding:0}
 .sidebar nav{display:flex;flex-direction:column;gap:2px;flex:1}
 .sidebar nav a{position:relative;display:flex;align-items:center;gap:11px;padding:9px 11px;border-radius:10px;color:var(--navy-text);font-size:.89rem;font-weight:600;transition:background .18s var(--ease),color .18s var(--ease),padding-left .18s var(--ease)}
 .sidebar nav a::before{content:'';position:absolute;left:0;top:24%;bottom:24%;width:3px;border-radius:0 4px 4px 0;background:var(--primary-bright);transform:scaleY(0);transition:transform .2s var(--ease)}
+.nav-text{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sidebar nav a:hover{background:rgba(255,255,255,.08);color:#fff;padding-left:13px}
 .sidebar nav a.active{background:rgba(16,185,129,.14);color:#fff}
 .sidebar nav a.active::before{transform:scaleY(1)}
@@ -1069,6 +1070,7 @@ html[data-theme="dark"] .notif-item.is-sos .notif-cta{border-color:rgba(248,113,
 }
 @media (prefers-reduced-motion:reduce){
   .notif-popover,.notif-tab-pill,.notif-tab,.notif-pop-list .notif-item,.notif-pop-list .notif-pop-empty{transition:none!important;animation:none!important}
+  .who-btn,.who-btn .avatar,.who-info,.who-chev{transition:none!important}
 }
 
 /* 25. COLLAPSIBLE SIDE PANEL & PROFILE MODAL + SHELL BLUR ---------------- */
@@ -1082,13 +1084,14 @@ html[data-theme="dark"] .notif-item.is-sos .notif-cta{border-color:rgba(248,113,
 .sidebar nav{min-height:0;overflow-y:auto;overflow-x:hidden;scrollbar-width:none;-ms-overflow-style:none;padding:4px 4px 10px}
 .sidebar nav::-webkit-scrollbar{display:none;width:0;height:0}
 .sidebar-user-wrap{position:relative;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,.09)}
-.who-btn{width:100%;margin-top:0;padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04);text-align:left;cursor:pointer;font:inherit;transition:background .2s var(--ease),border-color .2s var(--ease)}
+.who-btn{width:100%;height:58px;margin-top:0;padding:10px 11px;border:1px solid rgba(255,255,255,.1);border-radius:14px;background:rgba(255,255,255,.04);text-align:left;cursor:pointer;font:inherit;overflow:hidden;transition:background .2s var(--ease),border-color .2s var(--ease),gap .26s cubic-bezier(.22,1,.36,1),width .26s cubic-bezier(.22,1,.36,1),height .26s cubic-bezier(.22,1,.36,1),padding .26s cubic-bezier(.22,1,.36,1),border-radius .26s cubic-bezier(.22,1,.36,1)}
 .who-btn:hover,.who-btn[aria-expanded="true"]{background:rgba(255,255,255,.09);border-color:rgba(255,255,255,.2)}
 .who-btn .avatar,.sp-head .avatar{position:relative}
+.who-btn .avatar{transition:width .26s cubic-bezier(.22,1,.36,1),height .26s cubic-bezier(.22,1,.36,1),font-size .26s cubic-bezier(.22,1,.36,1)}
 .avatar-status{position:absolute;right:-1px;bottom:-1px;width:10px;height:10px;border-radius:50%;background:var(--primary-bright);border:2px solid var(--navy)}
-.who-info{flex:1;min-width:0}
-.who-info strong,.who-info .muted{display:block;overflow-wrap:anywhere}
-.who-chev{display:grid;place-items:center;color:var(--navy-text);flex:none;opacity:.95}
+.who-info{flex:1;min-width:0;overflow:hidden;opacity:1;transition:opacity .16s var(--ease),transform .16s var(--ease)}
+.who-info strong,.who-info .muted{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who-chev{display:grid;place-items:center;color:var(--navy-text);flex:none;opacity:.95;transition:opacity .16s var(--ease)}
 
 .sidebar-profile-popover{position:absolute;left:0;right:auto;bottom:calc(100% + 10px);z-index:95;width:max(100%,284px);max-width:calc(100vw - 28px);padding:10px;border:1px solid var(--border);border-radius:16px;background:var(--surface);box-shadow:var(--shadow-lg);transform-origin:bottom left;animation:rise .16s var(--ease)}
 .sidebar-profile-popover[hidden]{display:none}
@@ -1142,10 +1145,10 @@ html[data-theme="dark"] .sp-item.sp-danger:hover{color:#fecaca}
   body.app.sidebar-closed .nav-short{display:block;max-width:100%;font-size:.64rem;font-weight:600;line-height:1.15;letter-spacing:0;overflow-wrap:anywhere}
   body.app.sidebar-closed .nav-active-pill{left:0;right:0;border-radius:10px}
   body.app.sidebar-closed .sidebar-user-wrap{display:flex;justify-content:center;margin-top:8px;padding-top:10px}
-  body.app.sidebar-closed .who-btn{width:40px;height:40px;padding:2px;border-radius:999px;justify-content:center;border-color:rgba(255,255,255,.18)}
+  body.app.sidebar-closed .who-btn{gap:0;width:40px;height:40px;padding:2px;border-radius:999px;justify-content:center;border-color:rgba(255,255,255,.18)}
   body.app.sidebar-closed .who-btn .avatar{width:34px;height:34px;font-size:.78rem}
-  body.app.sidebar-closed .who-info,
-  body.app.sidebar-closed .who-chev{display:none}
+  body.app.sidebar-closed .who-info{flex:0 0 0;max-width:0;opacity:0;visibility:hidden;transform:translateX(-4px);transition:opacity .12s var(--ease),transform .12s var(--ease),visibility 0s linear .12s}
+  body.app.sidebar-closed .who-chev{width:0;overflow:hidden;opacity:0;visibility:hidden;transition:opacity .12s var(--ease),visibility 0s linear .12s}
   body.app.sidebar-closed .sidebar-profile-popover{left:calc(100% + 12px);right:auto;bottom:0;width:284px;transform-origin:bottom left}
 }
 
