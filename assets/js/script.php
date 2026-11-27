@@ -926,8 +926,8 @@ header('X-Content-Type-Options: nosniff');
         restoreBtn();
         onFound(lat, lng, { approximate: !!approximate, label: areaLabel || '' });
         if (approximate) {
-          var where = areaLabel ? ('near ' + areaLabel) : 'near your network location';
-          showToast('Centered ' + where + ' (approximate \u2014 exact GPS requires HTTPS). Drag the pin or search to refine.');
+          var where = areaLabel ? ('near ' + areaLabel) : 'your network area';
+          showToast('Approximate location only (' + where + '). Browsers share exact GPS only over HTTPS \u2014 drag the pin or search to set the exact spot.', 'error', 12000);
         } else {
           showToast('Centered map on your current location.');
         }
@@ -1334,8 +1334,12 @@ header('X-Content-Type-Options: nosniff');
       var locate = document.getElementById('locate');
       if (locate) locate.addEventListener('click', function () {
         requestCurrentLocation(locate, function (lat, lng, meta) {
-          setPin(lat, lng, true);
-          pickMap.setView([lat, lng], (meta && meta.approximate) ? 14 : 17);
+          var approximate = !!(meta && meta.approximate);
+          setPin(lat, lng, !approximate);
+          if (approximate) {
+            applyAutoRepPlace('Approximate area: ' + (meta.label || 'network location') + ' \u2014 drag the pin to the exact spot');
+          }
+          pickMap.setView([lat, lng], approximate ? 13 : 17);
         });
       });
     }
@@ -1454,7 +1458,7 @@ header('X-Content-Type-Options: nosniff');
         }
       }
 
-      function syncPinStatus(lat, lng) {
+      function syncPinStatus(lat, lng, approximate) {
         var pinned = typeof lat === 'number' && typeof lng === 'number';
         var coordStr = pinned ? lat.toFixed(5) + ', ' + lng.toFixed(5) : '';
         if (dCoords) {
@@ -1465,14 +1469,23 @@ header('X-Content-Type-Options: nosniff');
         if (dCard && pinned) dCard.classList.remove('needs-pin');
         if (dStatusBox) {
           dStatusBox.classList.toggle('is-pinned', pinned);
+          dStatusBox.classList.toggle('is-approximate', pinned && !!approximate);
           if (pinned) dStatusBox.classList.remove('is-error');
         }
-        if (dStatusHead) dStatusHead.textContent = pinned ? 'Dispatch pin ready' : 'Location pin required';
-        if (dStatusSub) dStatusSub.textContent = pinned ? coordStr : 'Click or search on the map to drop a pin';
+        if (dStatusHead) {
+          dStatusHead.textContent = pinned
+            ? (approximate ? 'Approximate pin \u2014 confirm exact spot' : 'Dispatch pin ready')
+            : 'Location pin required';
+        }
+        if (dStatusSub) {
+          dStatusSub.textContent = pinned
+            ? (approximate ? coordStr + ' \u00b7 city-level only, drag pin to refine' : coordStr)
+            : 'Click or search on the map to drop a pin';
+        }
         if (dJumpBtn) dJumpBtn.textContent = pinned ? 'Adjust pin' : 'Select on map';
       }
 
-      function updateDispatchPin(lat, lng, pan, resolvePlace) {
+      function updateDispatchPin(lat, lng, pan, resolvePlace, approximate) {
         if (!dPin) {
           dPin = L.marker([lat, lng], { icon: dispatchIcon, draggable: true, zIndexOffset: 1000 }).addTo(dMap);
           dPin.bindPopup('Dispatch target (drag to adjust)');
@@ -1485,7 +1498,7 @@ header('X-Content-Type-Options: nosniff');
         }
         if (dLatIn) dLatIn.value = lat.toFixed(7);
         if (dLngIn) dLngIn.value = lng.toFixed(7);
-        syncPinStatus(lat, lng);
+        syncPinStatus(lat, lng, approximate);
         if (pan) dMap.setView([lat, lng], Math.max(dMap.getZoom(), 17));
         if (resolvePlace !== false) {
           dRevGeo.lookup(lat, lng, function (label) { applyDispatchPlace(label, lat, lng); });
@@ -1511,8 +1524,14 @@ header('X-Content-Type-Options: nosniff');
       if (dLocate) {
         dLocate.addEventListener('click', function () {
           requestCurrentLocation(dLocate, function (lat, lng, meta) {
-            updateDispatchPin(lat, lng, false, true);
-            dMap.setView([lat, lng], (meta && meta.approximate) ? 14 : Math.max(dMap.getZoom(), 17));
+            var approximate = !!(meta && meta.approximate);
+            updateDispatchPin(lat, lng, false, !approximate, approximate);
+            if (approximate) {
+              var areaLabel = 'Approximate area: ' + (meta.label || 'network location');
+              applyDispatchPlace(areaLabel, lat, lng);
+              if (dStatusSub) dStatusSub.textContent = areaLabel + ' \u00b7 drag pin to refine (' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ')';
+            }
+            dMap.setView([lat, lng], approximate ? 13 : Math.max(dMap.getZoom(), 17));
           });
         });
       }
@@ -1600,8 +1619,12 @@ header('X-Content-Type-Options: nosniff');
       if (sLocate) {
         sLocate.addEventListener('click', function () {
           requestCurrentLocation(sLocate, function (lat, lng, meta) {
+            var approximate = !!(meta && meta.approximate);
             applySettingsCoords(lat, lng, false);
-            sMap.setView([lat, lng], (meta && meta.approximate) ? 13 : Math.max(sMap.getZoom(), 16));
+            if (approximate && sReadout) {
+              sReadout.textContent = 'Approximate center: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' \u2014 verify on map';
+            }
+            sMap.setView([lat, lng], approximate ? 12 : Math.max(sMap.getZoom(), 16));
           });
         });
       }
