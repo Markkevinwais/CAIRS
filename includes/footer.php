@@ -155,7 +155,7 @@
                     <button type="button" class="notif-head-ic" id="pm-url-close" aria-label="Close URL input"><?= icon('x', 14) ?></button>
                   </div>
                   <div class="pm-url-row">
-                    <input type="url" id="pm-avatar-url-input" placeholder="https://example.com/avatar.jpg" value="<?= e($userProfile['avatar_type'] === 'image' ? $userProfile['avatar_url'] : '') ?>">
+                    <input type="url" id="pm-avatar-url-input" placeholder="https://example.com/avatar.jpg" value="<?= e($userProfile['avatar_type'] === 'image' && preg_match('#^https?://#i', (string) ($userProfile['avatar_url'] ?? '')) ? $userProfile['avatar_url'] : '') ?>">
                     <button type="button" class="btn small" id="pm-url-apply">Apply</button>
                   </div>
                 </div>

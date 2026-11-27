@@ -312,7 +312,8 @@ function renderAvatar(?array $profile, string $extraClass = '', bool $withStatus
     $classes[] = ($imgUrl !== '' || $hasBadgeImg) ? 'av-has-img' : 'av-style-' . $styleId;
 
     if ($imgUrl !== '') {
-        $inner = '<img class="avatar-img" src="' . e($imgUrl) . '" alt="' . e($name) . '" referrerpolicy="no-referrer">';
+        $imgSrc = str_starts_with($imgUrl, '/assets/') ? BASE_URL . $imgUrl : $imgUrl;
+        $inner = '<img class="avatar-img" src="' . e($imgSrc) . '" alt="' . e($name) . '" referrerpolicy="no-referrer">';
     } elseif (($styleMeta['kind'] ?? '') === 'image') {
         $inner = '<img class="avatar-img" src="' . e(BASE_URL . $styleMeta['img']) . '" alt="' . e($styleMeta['label'] . ' badge') . '" referrerpolicy="no-referrer">';
     } elseif (($styleMeta['kind'] ?? '') === 'icon') {

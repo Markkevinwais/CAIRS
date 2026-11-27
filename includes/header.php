@@ -79,7 +79,7 @@ $pageDesc = "{$site} - Community Assistance and Incident Reporting System for ba
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
 </head>
-<body class="<?= $u ? 'app role-' . e($u['role']) : 'public' ?>"<?= $u ? ' data-poll="' . BASE_URL . '/api/poll.php"' : '' ?>>
+<body class="<?= $u ? 'app role-' . e($u['role']) : 'public' ?>" data-base="<?= e(BASE_URL) ?>"<?= $u ? ' data-poll="' . e(BASE_URL) . '/api/poll.php"' : '' ?>>
 <?php if ($u): ?>
 <a class="skip-link" href="#main">Skip to content</a>
 <div class="sidebar-overlay" aria-hidden="true"></div>

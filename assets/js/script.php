@@ -23,6 +23,11 @@ header('X-Content-Type-Options: nosniff');
   function $(selector, root) { return (root || document).querySelector(selector); }
   function $all(selector, root) { return Array.prototype.slice.call((root || document).querySelectorAll(selector)); }
   var reduceMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  var APP_BASE = document.body ? (document.body.getAttribute('data-base') || '') : '';
+  function appUrl(path) {
+    if (!path || path.charAt(0) !== '/') return path;
+    return APP_BASE + path;
+  }
 
 
   /* 2. SIDEBAR DRAWER & COLLAPSIBLE SIDE PANEL --------------------------- */
@@ -1672,7 +1677,7 @@ header('X-Content-Type-Options: nosniff');
     closeNotifPopover = function () { setOpen(false); };
 
     function apiPost(endpoint, payload) {
-      return fetch(endpoint, {
+      return fetch(appUrl(endpoint), {
         method: 'POST',
         credentials: 'same-origin',
         headers: {
@@ -1768,7 +1773,7 @@ header('X-Content-Type-Options: nosniff');
           ev.stopPropagation();
           state.items = state.items.filter(function (x) { return x.id !== item.id; });
           renderList();
-          apiPost('/api/notifications/clear', { id: item.id }).then(function (res) {
+          apiPost('/api/notifications_clear.php', { id: item.id }).then(function (res) {
             if (res && typeof res.unread === 'number') syncUnreadUi(res.unread);
           });
         });
@@ -1800,7 +1805,7 @@ header('X-Content-Type-Options: nosniff');
               item.is_read = true;
               var nextUnread = state.items.filter(function (x) { return !x.is_read; }).length;
               syncUnreadUi(nextUnread);
-              apiPost('/api/notifications/read', { id: item.id });
+              apiPost('/api/notifications_read.php', { id: item.id });
             }
             setOpen(false);
           });
@@ -1839,7 +1844,7 @@ header('X-Content-Type-Options: nosniff');
 
     function loadNotifications() {
       if (!state.loaded) renderNotifSkeleton();
-      fetch('/api/notifications', { credentials: 'same-origin', cache: 'no-store' })
+      fetch(appUrl('/api/notifications.php'), { credentials: 'same-origin', cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           if (!data) return;
@@ -1920,7 +1925,7 @@ header('X-Content-Type-Options: nosniff');
         state.items.forEach(function (it) { it.is_read = true; });
         syncUnreadUi(0);
         renderList();
-        apiPost('/api/notifications/read', {}).then(function (res) {
+        apiPost('/api/notifications_read.php', {}).then(function (res) {
           if (res && typeof res.unread === 'number') syncUnreadUi(res.unread);
         });
       });
@@ -1931,7 +1936,7 @@ header('X-Content-Type-Options: nosniff');
         state.items = [];
         syncUnreadUi(0);
         renderList();
-        apiPost('/api/notifications/clear', { mode: 'all' }).then(function (res) {
+        apiPost('/api/notifications_clear.php', { mode: 'all' }).then(function (res) {
           if (res && typeof res.unread === 'number') syncUnreadUi(res.unread);
         });
       });
@@ -3137,6 +3142,7 @@ header('X-Content-Type-Options: nosniff');
 
     // Smooth GET filter/search forms (partial in-place update on same page, full SPA nav across routes)
     document.addEventListener('submit', function (e) {
+      if (e.defaultPrevented) return;
       var form = e.target;
       if (!form || (form.getAttribute('method') || 'get').toLowerCase() !== 'get') return;
       if (form.hasAttribute('data-confirm')) return;
@@ -3421,7 +3427,7 @@ header('X-Content-Type-Options: nosniff');
         var img = document.createElement('img');
         img.className = 'avatar-img';
         img.referrerPolicy = 'no-referrer';
-        img.src = imgSrc || badgeImgSrc;
+        img.src = appUrl(imgSrc || badgeImgSrc);
         img.alt = imgSrc ? (displayName || '') : (styleId + ' badge');
         el.appendChild(img);
       } else {
@@ -3744,7 +3750,7 @@ header('X-Content-Type-Options: nosniff');
       }
       openModal(modal);
       switchTab('identity', false);
-      fetch('/api/profile', { credentials: 'same-origin', cache: 'no-store' })
+      fetch(appUrl('/api/profile.php'), { credentials: 'same-origin', cache: 'no-store' })
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (d) {
           if (!d) return;
@@ -3756,7 +3762,7 @@ header('X-Content-Type-Options: nosniff');
           avatarState.avatar_shape = d.avatar_shape === 'badge' ? 'badge' : 'circle';
           avatarState.avatar_url = d.avatar_url || '';
           avatarState.avatar_data = '';
-          if (urlInput) urlInput.value = avatarState.avatar_type === 'image' ? avatarState.avatar_url : '';
+          if (urlInput) urlInput.value = avatarState.avatar_type === 'image' && /^https?:\/\//i.test(avatarState.avatar_url) ? avatarState.avatar_url : '';
           syncModalPreview();
         })
         .catch(function () {});
@@ -3790,7 +3796,7 @@ header('X-Content-Type-Options: nosniff');
         avatar_data: avatarState.avatar_data,
       };
 
-      fetch('/api/profile', {
+      fetch(appUrl('/api/profile.php'), {
         method: 'POST',
         credentials: 'same-origin',
         headers: {
