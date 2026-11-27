@@ -143,6 +143,7 @@ require __DIR__ . '/../includes/header.php';
   </div>
   <nav class="settings-nav" aria-label="Settings sections">
     <button type="button" class="settings-nav-btn is-active" data-settings-tab="all" aria-current="true"><?= icon('grid', 15) ?><span>All sections</span></button>
+    <button type="button" class="settings-nav-btn" data-settings-tab="appearance" aria-current="false"><?= icon('sun', 15) ?><span>Appearance</span></button>
     <button type="button" class="settings-nav-btn" data-settings-tab="site" aria-current="false"><?= icon('globe', 15) ?><span>System Identity</span></button>
     <button type="button" class="settings-nav-btn" data-settings-tab="map" aria-current="false"><?= icon('pin', 15) ?><span>Map Coordinates</span></button>
     <button type="button" class="settings-nav-btn" data-settings-tab="hotlines" aria-current="false"><?= icon('phone', 15) ?><span>Emergency Hotlines</span></button>
@@ -163,6 +164,75 @@ require __DIR__ . '/../includes/header.php';
 <?= mapAssets() ?>
 
 <div class="settings-panels">
+    <section class="card setting-card" data-settings-panel="appearance">
+      <div class="setting-head">
+        <div class="setting-head-title">
+          <span class="setting-head-ic"><?= icon('sun', 19) ?></span>
+          <div>
+            <h2>Appearance &amp; Theme</h2>
+            <p>Choose how <?= e($siteName) ?> renders on this device—daylight light surfaces, low-glare dark mode, or automatic OS sync.</p>
+          </div>
+        </div>
+        <span class="setting-tag is-on" data-theme-status>Auto</span>
+      </div>
+      <div class="setting-body">
+        <div class="theme-preset-grid" role="group" aria-label="Color theme preference">
+          <button type="button" class="theme-preset-card" data-theme-set="light" aria-pressed="false">
+            <span class="tp-preview is-light" aria-hidden="true">
+              <span class="tp-rail"><i class="tp-brand"></i><i class="tp-nav is-on"></i><i class="tp-nav"></i><i class="tp-nav"></i></span>
+              <span class="tp-main">
+                <span class="tp-bar"><i></i><i class="tp-dot"></i></span>
+                <span class="tp-stats"><i></i><i class="tp-accent"></i></span>
+                <span class="tp-card"><i></i><i class="tp-short"></i></span>
+              </span>
+            </span>
+            <span class="tp-meta">
+              <span class="tp-title"><?= icon('sun', 16) ?><strong>Light</strong></span>
+              <span class="tp-radio" aria-hidden="true"></span>
+            </span>
+            <span class="tp-desc">Bright alabaster workspace with crisp high-contrast ink.</span>
+          </button>
+
+          <button type="button" class="theme-preset-card" data-theme-set="dark" aria-pressed="false">
+            <span class="tp-preview is-dark" aria-hidden="true">
+              <span class="tp-rail"><i class="tp-brand"></i><i class="tp-nav is-on"></i><i class="tp-nav"></i><i class="tp-nav"></i></span>
+              <span class="tp-main">
+                <span class="tp-bar"><i></i><i class="tp-dot"></i></span>
+                <span class="tp-stats"><i></i><i class="tp-accent"></i></span>
+                <span class="tp-card"><i></i><i class="tp-short"></i></span>
+              </span>
+            </span>
+            <span class="tp-meta">
+              <span class="tp-title"><?= icon('moon', 16) ?><strong>Dark</strong></span>
+              <span class="tp-radio" aria-hidden="true"></span>
+            </span>
+            <span class="tp-desc">Deep slate surfaces tuned for low-light dispatch shifts.</span>
+          </button>
+
+          <button type="button" class="theme-preset-card" data-theme-set="system" aria-pressed="false">
+            <span class="tp-preview is-system" aria-hidden="true">
+              <span class="tp-half tp-half-light">
+                <span class="tp-rail"><i class="tp-brand"></i><i class="tp-nav is-on"></i><i class="tp-nav"></i></span>
+                <span class="tp-main"><span class="tp-bar"><i></i></span><span class="tp-card"><i></i><i class="tp-short"></i></span></span>
+              </span>
+              <span class="tp-half tp-half-dark">
+                <span class="tp-main"><span class="tp-bar"><i></i><i class="tp-dot"></i></span><span class="tp-card"><i></i><i class="tp-accent"></i></span></span>
+              </span>
+            </span>
+            <span class="tp-meta">
+              <span class="tp-title"><?= icon('monitor', 16) ?><strong>System Auto</strong></span>
+              <span class="tp-radio" aria-hidden="true"></span>
+            </span>
+            <span class="tp-desc">Follows your operating system light or dark schedule.</span>
+          </button>
+        </div>
+      </div>
+      <div class="setting-foot">
+        <span class="setting-foot-note">Applies immediately on this browser and stays synced across open tabs.</span>
+        <span class="setting-foot-note" data-theme-resolved-note></span>
+      </div>
+    </section>
+
     <section class="card setting-card" data-settings-panel="site">
       <div class="setting-head">
         <div class="setting-head-title">

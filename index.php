@@ -38,6 +38,10 @@ require __DIR__ . '/includes/header.php';
         <?php if ($landingHotlines): ?><a href="#hotlines">Hotlines</a><?php endif; ?>
       </nav>
       <div class="landing-nav-actions">
+        <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+          <span class="theme-ic-sun" aria-hidden="true"><?= icon('sun', 18) ?></span>
+          <span class="theme-ic-moon" aria-hidden="true"><?= icon('moon', 18) ?></span>
+        </button>
         <a class="landing-login-link" href="<?= BASE_URL ?>/login.php">Log in</a>
         <a class="btn small" href="<?= BASE_URL ?>/register.php">Register</a>
       </div>

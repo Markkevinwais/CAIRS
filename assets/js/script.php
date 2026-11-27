@@ -29,6 +29,129 @@ header('X-Content-Type-Options: nosniff');
     return APP_BASE + path;
   }
 
+  var THEME_KEY = 'cairs_theme';
+
+  function normalizeThemeMode(raw) {
+    return (raw === 'light' || raw === 'dark' || raw === 'system') ? raw : 'system';
+  }
+
+  function getStoredThemeMode() {
+    try {
+      return normalizeThemeMode(localStorage.getItem(THEME_KEY));
+    } catch (_) {
+      return 'system';
+    }
+  }
+
+  function resolveTheme(mode) {
+    if (mode === 'dark' || mode === 'light') return mode;
+    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+  }
+
+  function syncThemeUi() {
+    var root = document.documentElement;
+    var resolved = root.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    var mode = normalizeThemeMode(root.getAttribute('data-theme-mode') || getStoredThemeMode());
+    var isDark = resolved === 'dark';
+    var toggleLabel = isDark ? 'Switch to light mode' : 'Switch to dark mode';
+
+    $all('[data-theme-toggle]').forEach(function (btn) {
+      btn.setAttribute('aria-pressed', isDark ? 'true' : 'false');
+      btn.setAttribute('aria-label', toggleLabel);
+      btn.setAttribute('title', toggleLabel);
+    });
+
+    $all('[data-theme-set]').forEach(function (btn) {
+      var btnMode = btn.getAttribute('data-theme-set');
+      var on = btnMode === mode;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
+
+    var statusText = mode === 'system'
+      ? ('Auto · ' + (isDark ? 'Dark' : 'Light'))
+      : (isDark ? 'Dark Mode' : 'Light Mode');
+    $all('[data-theme-status]').forEach(function (el) {
+      el.textContent = statusText;
+    });
+
+    var noteText = 'Active palette: ' + (isDark ? 'Dark' : 'Light') + (mode === 'system' ? ' (synced with OS)' : '');
+    $all('[data-theme-resolved-note]').forEach(function (el) {
+      el.textContent = noteText;
+    });
+  }
+
+  function applyTheme(mode) {
+    var root = document.documentElement;
+    var normMode = normalizeThemeMode(mode);
+    var resolved = resolveTheme(normMode);
+
+    root.classList.add('no-theme-transition');
+    root.setAttribute('data-theme', resolved);
+    root.setAttribute('data-theme-mode', normMode);
+
+    var metaTheme = $('meta[name="theme-color"]');
+    if (metaTheme) {
+      metaTheme.setAttribute('content', resolved === 'dark' ? '#0b1220' : '#0f1b2d');
+    }
+
+    syncThemeUi();
+
+    try {
+      document.dispatchEvent(new CustomEvent('cairs:themechange', {
+        detail: { theme: resolved, mode: normMode }
+      }));
+    } catch (_) {}
+
+    void root.offsetWidth;
+    root.classList.remove('no-theme-transition');
+  }
+
+  function initTheme() {
+    applyTheme(getStoredThemeMode());
+
+    if (initTheme._bound) return;
+    initTheme._bound = true;
+
+    document.addEventListener('click', function (e) {
+      var setBtn = e.target && e.target.closest ? e.target.closest('[data-theme-set]') : null;
+      if (setBtn) {
+        var nextMode = normalizeThemeMode(setBtn.getAttribute('data-theme-set'));
+        try { localStorage.setItem(THEME_KEY, nextMode); } catch (_) {}
+        applyTheme(nextMode);
+        return;
+      }
+
+      var toggleBtn = e.target && e.target.closest ? e.target.closest('[data-theme-toggle]') : null;
+      if (toggleBtn) {
+        var curIsDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        var flipped = curIsDark ? 'light' : 'dark';
+        try { localStorage.setItem(THEME_KEY, flipped); } catch (_) {}
+        applyTheme(flipped);
+      }
+    });
+
+    if (window.matchMedia) {
+      var mq = window.matchMedia('(prefers-color-scheme: dark)');
+      var onMediaChange = function () {
+        if (getStoredThemeMode() === 'system') {
+          applyTheme('system');
+        }
+      };
+      if (typeof mq.addEventListener === 'function') {
+        mq.addEventListener('change', onMediaChange);
+      } else if (typeof mq.addListener === 'function') {
+        mq.addListener(onMediaChange);
+      }
+    }
+
+    window.addEventListener('storage', function (e) {
+      if (e.key === THEME_KEY) {
+        applyTheme(e.newValue || 'system');
+      }
+    });
+  }
+
 
   /* 2. SIDEBAR DRAWER & COLLAPSIBLE SIDE PANEL --------------------------- */
   var sidebarNavApi = null;
@@ -1512,7 +1635,7 @@ header('X-Content-Type-Options: nosniff');
   }
 
   function syncUnreadUi(n) {
-    var bell = $('#notif-bell-btn') || $('.topbar .icon-btn');
+    var bell = $('#notif-bell-btn');
     setCountBadge(bell, n);
     if (bell) {
       bell.setAttribute('aria-label', n > 0 ? ('Notifications (' + n + ' unread)') : 'Notifications');
@@ -1613,6 +1736,8 @@ header('X-Content-Type-Options: nosniff');
     var lastPillRect = null;
     var activeTab = 'all';
     var state = { items: [], unread: 0, total: 0, loaded: false };
+    var inFlight = false;
+    var lastPayloadSig = '';
 
     if (tabsWrap && tabButtons.length) {
       tabPill = $('.notif-tab-pill', tabsWrap);
@@ -1659,6 +1784,17 @@ header('X-Content-Type-Options: nosniff');
       }
     }
 
+    function resetTabIfFilteredEmpty() {
+      if (activeTab !== 'all' && state.items.length > 0 && !filteredItems().length) {
+        activeTab = 'all';
+        tabButtons.forEach(function (b) {
+          var on = (b.getAttribute('data-notif-tab') || 'all') === 'all';
+          b.classList.toggle('is-active', on);
+          b.setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+      }
+    }
+
     function setOpen(open) {
       popover.hidden = !open;
       bellBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1670,8 +1806,12 @@ header('X-Content-Type-Options: nosniff');
           var b = $('[data-dropdown]', d);
           if (b) b.setAttribute('aria-expanded', 'false');
         });
+        if (state.loaded) {
+          resetTabIfFilteredEmpty();
+          renderList();
+        }
         requestAnimationFrame(function () { positionTabPill(false); });
-        loadNotifications();
+        loadNotifications(false);
       }
     }
     closeNotifPopover = function () { setOpen(false); };
@@ -1772,6 +1912,7 @@ header('X-Content-Type-Options: nosniff');
           ev.preventDefault();
           ev.stopPropagation();
           state.items = state.items.filter(function (x) { return x.id !== item.id; });
+          lastPayloadSig = JSON.stringify(state.items);
           renderList();
           apiPost('/api/notifications_clear.php', { id: item.id }).then(function (res) {
             if (res && typeof res.unread === 'number') syncUnreadUi(res.unread);
@@ -1823,7 +1964,10 @@ header('X-Content-Type-Options: nosniff');
 
     function renderNotifSkeleton() {
       listEl.textContent = '';
-      for (var i = 0; i < 3; i++) {
+      var badgeEl = $('.count', bellBtn);
+      var rawCount = badgeEl ? parseInt((badgeEl.textContent || '').replace(/[^0-9]/g, ''), 10) : 0;
+      var skCount = rawCount > 0 ? Math.min(3, rawCount) : 1;
+      for (var i = 0; i < skCount; i++) {
         var item = document.createElement('div');
         item.className = 'sk-notif-item';
         var ic = document.createElement('div');
@@ -1842,26 +1986,51 @@ header('X-Content-Type-Options: nosniff');
       }
     }
 
-    function loadNotifications() {
-      if (!state.loaded) renderNotifSkeleton();
+    function loadNotifications(silent) {
+      if (!state.loaded && !silent && (!listEl.children.length || $('.notif-pop-empty', listEl))) {
+        renderNotifSkeleton();
+      }
+      if (inFlight) return;
+      inFlight = true;
       fetch(appUrl('/api/notifications.php'), { credentials: 'same-origin', cache: 'no-store' })
-        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (r) {
+          if (!r.ok) throw new Error('HTTP ' + r.status);
+          return r.json();
+        })
         .then(function (data) {
-          if (!data) return;
-          state.items = Array.isArray(data.items) ? data.items : [];
+          inFlight = false;
+          if (!data || !Array.isArray(data.items)) throw new Error('Invalid notification payload');
+          var nextItems = data.items;
+          var sig = JSON.stringify(nextItems);
+          var wasLoaded = state.loaded;
+          state.items = nextItems;
           state.unread = typeof data.unread === 'number' ? data.unread : 0;
           state.total = typeof data.total === 'number' ? data.total : state.items.length;
           state.loaded = true;
           syncUnreadUi(state.unread);
-          renderList();
+          if (!popover.hidden) resetTabIfFilteredEmpty();
+          if (!wasLoaded || sig !== lastPayloadSig) {
+            lastPayloadSig = sig;
+            renderList();
+          }
         })
         .catch(function () {
-          if (!state.loaded) listEl.textContent = 'Could not load notifications.';
+          inFlight = false;
+          if (!state.loaded && !silent) {
+            listEl.textContent = '';
+            var errEl = document.createElement('div');
+            errEl.className = 'notif-pop-empty';
+            errEl.textContent = 'Could not load notifications.';
+            listEl.appendChild(errEl);
+          }
         });
     }
 
-    refreshNotifPopover = function () {
-      if (!popover.hidden) loadNotifications();
+    refreshNotifPopover = function (unreadHint) {
+      var unreadChanged = typeof unreadHint === 'number' && unreadHint !== state.unread;
+      if (!popover.hidden || !state.loaded || unreadChanged) {
+        loadNotifications(popover.hidden);
+      }
     };
 
     bellBtn.addEventListener('click', function (e) {
@@ -1923,6 +2092,7 @@ header('X-Content-Type-Options: nosniff');
     if (markAllBtn) {
       markAllBtn.addEventListener('click', function () {
         state.items.forEach(function (it) { it.is_read = true; });
+        lastPayloadSig = JSON.stringify(state.items);
         syncUnreadUi(0);
         renderList();
         apiPost('/api/notifications_read.php', {}).then(function (res) {
@@ -1934,6 +2104,7 @@ header('X-Content-Type-Options: nosniff');
     if (clearAllBtn) {
       clearAllBtn.addEventListener('click', function () {
         state.items = [];
+        lastPayloadSig = '[]';
         syncUnreadUi(0);
         renderList();
         apiPost('/api/notifications_clear.php', { mode: 'all' }).then(function (res) {
@@ -1950,6 +2121,8 @@ header('X-Content-Type-Options: nosniff');
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape' && !popover.hidden) setOpen(false);
     });
+
+    loadNotifications(true);
   }
 
   function initLivePoll() {
@@ -1984,7 +2157,7 @@ header('X-Content-Type-Options: nosniff');
         .then(function (d) {
           if (!d) return;
           syncUnreadUi(d.unread);
-          refreshNotifPopover();
+          refreshNotifPopover(d.unread);
           if (typeof d.sos_last === 'number') {
             if (lastSos !== null && d.sos_last > lastSos) sosToast(d);
             lastSos = d.sos_last;
@@ -2428,6 +2601,7 @@ header('X-Content-Type-Options: nosniff');
   }
 
   function initPage(isSwap) {
+    syncThemeUi();
     closeActiveSelect(false);
     initConfirmForms();
     initToasts();
@@ -2999,13 +3173,14 @@ header('X-Content-Type-Options: nosniff');
           var newCrumbs = $('.topbar .crumbs', doc);
           if (oldCrumbs && newCrumbs) oldCrumbs.innerHTML = newCrumbs.innerHTML;
 
-          var oldBell = $('.top-actions .icon-btn');
-          var newBell = $('.top-actions .icon-btn', doc);
+          var oldBell = $('#notif-bell-btn');
+          var newBell = $('#notif-bell-btn', doc);
           if (oldBell && newBell) oldBell.innerHTML = newBell.innerHTML;
           var newMetaCsrf = doc.querySelector('meta[name="csrf-token"]');
           var oldMetaCsrf = document.querySelector('meta[name="csrf-token"]');
           if (newMetaCsrf && oldMetaCsrf) oldMetaCsrf.setAttribute('content', newMetaCsrf.getAttribute('content') || '');
-          refreshNotifPopover();
+          var newBadgeCount = newBell && $('.count', newBell) ? parseInt(($('.count', newBell).textContent || '').replace(/[^0-9]/g, ''), 10) : 0;
+          refreshNotifPopover(newBadgeCount);
 
           // Sync resident SOS floating button visibility
           var oldFab = $('.sos-fab');
@@ -3358,19 +3533,19 @@ header('X-Content-Type-Options: nosniff');
 
       if (val.length < 6) {
         pwFill.style.width = '20%';
-        pwFill.style.background = '#dc2626';
+        pwFill.style.background = 'var(--danger)';
         pwHint.textContent = 'Too short \u2014 add at least ' + (6 - val.length) + ' more character(s)';
       } else if (score <= 2) {
         pwFill.style.width = '48%';
-        pwFill.style.background = '#d97706';
+        pwFill.style.background = 'var(--warning)';
         pwHint.textContent = 'Fair strength \u2014 consider adding numbers or symbols';
       } else if (score <= 3) {
         pwFill.style.width = '76%';
-        pwFill.style.background = '#047857';
+        pwFill.style.background = 'var(--primary-bright)';
         pwHint.textContent = 'Good password strength';
       } else {
         pwFill.style.width = '100%';
-        pwFill.style.background = '#16a34a';
+        pwFill.style.background = 'var(--success)';
         pwHint.textContent = 'Strong password';
       }
     }
@@ -3479,7 +3654,7 @@ header('X-Content-Type-Options: nosniff');
       var w = cropCanvas.width;
       var h = cropCanvas.height;
       ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = '#f1f5f9';
+      ctx.fillStyle = document.documentElement.getAttribute('data-theme') === 'dark' ? '#1c2942' : '#f1f5f9';
       ctx.fillRect(0, 0, w, h);
 
       var zoom = parseFloat(cropZoom ? cropZoom.value : '1') || 1;
@@ -3496,6 +3671,12 @@ header('X-Content-Type-Options: nosniff');
       var dy = (h - dh) / 2 + oy * maxShiftY;
       ctx.drawImage(cropImg, dx, dy, dw, dh);
     }
+
+    document.addEventListener('cairs:themechange', function () {
+      if (cropPanel && !cropPanel.hidden && cropImg) {
+        drawCropCanvas();
+      }
+    });
 
     function openCropper(src) {
       if (!src || !cropPanel) return;
@@ -4337,19 +4518,19 @@ header('X-Content-Type-Options: nosniff');
         if (/[^A-Za-z0-9]/.test(val)) score++;
         if (val.length < 6) {
           secFill.style.width = '20%';
-          secFill.style.background = '#dc2626';
+          secFill.style.background = 'var(--danger)';
           secHint.textContent = 'Too short \u2014 add at least ' + (6 - val.length) + ' more character(s)';
         } else if (score <= 2) {
           secFill.style.width = '48%';
-          secFill.style.background = '#d97706';
+          secFill.style.background = 'var(--warning)';
           secHint.textContent = 'Fair strength \u2014 add numbers or symbols';
         } else if (score <= 3) {
           secFill.style.width = '76%';
-          secFill.style.background = '#047857';
+          secFill.style.background = 'var(--primary-bright)';
           secHint.textContent = 'Good password strength';
         } else {
           secFill.style.width = '100%';
-          secFill.style.background = '#16a34a';
+          secFill.style.background = 'var(--success)';
           secHint.textContent = 'Strong password';
         }
       }
@@ -4634,19 +4815,19 @@ header('X-Content-Type-Options: nosniff');
 
         if (val.length < 6) {
           pwFill.style.width = '20%';
-          pwFill.style.background = '#dc2626';
+          pwFill.style.background = 'var(--danger)';
           pwHint.textContent = 'Too short \u2014 add at least ' + (6 - val.length) + ' more character(s)';
         } else if (score <= 2) {
           pwFill.style.width = '48%';
-          pwFill.style.background = '#d97706';
+          pwFill.style.background = 'var(--warning)';
           pwHint.textContent = 'Fair strength \u2014 try adding numbers or mixed case';
         } else if (score <= 3) {
           pwFill.style.width = '76%';
-          pwFill.style.background = '#047857';
+          pwFill.style.background = 'var(--primary-bright)';
           pwHint.textContent = 'Good password strength';
         } else {
           pwFill.style.width = '100%';
-          pwFill.style.background = '#16a34a';
+          pwFill.style.background = 'var(--success)';
           pwHint.textContent = 'Strong password';
         }
       };
@@ -4699,6 +4880,7 @@ header('X-Content-Type-Options: nosniff');
 
 
   /* START ---------------------------------------------------------------- */
+  initTheme();
   initSidebar();
   initDropdowns();
   initClock();

@@ -63,4 +63,4 @@ echo json_encode([
     'unread' => $unread,
     'total' => count($all),
     'items' => $items,
-]);
+], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);

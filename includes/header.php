@@ -77,6 +77,7 @@ $pageDesc = "{$site} - Community Assistance and Incident Reporting System for ba
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="preconnect" href="https://cdnjs.cloudflare.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script>(function(){try{var m=localStorage.getItem('cairs_theme');if(m!=='light'&&m!=='dark'&&m!=='system')m='system';var d=m==='dark'||(m==='system'&&window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches);var r=document.documentElement;r.setAttribute('data-theme',d?'dark':'light');r.setAttribute('data-theme-mode',m);var mt=document.querySelector('meta[name="theme-color"]');if(mt)mt.setAttribute('content',d?'#0b1220':'#0f1b2d');}catch(_){}})();</script>
 <link rel="stylesheet" href="<?= BASE_URL ?>/assets/css/style.css">
 </head>
 <body class="<?= $u ? 'app role-' . e($u['role']) : 'public' ?>" data-base="<?= e(BASE_URL) ?>"<?= $u ? ' data-poll="' . e(BASE_URL) . '/api/poll.php"' : '' ?>>
@@ -140,6 +141,15 @@ $pageDesc = "{$site} - Community Assistance and Incident Reporting System for ba
           </a>
         <?php endif; ?>
         <div class="sp-sep" role="separator"></div>
+        <div class="sp-theme-row">
+          <span class="sp-theme-lbl">Appearance</span>
+          <div class="sp-theme-switch" role="group" aria-label="Color theme">
+            <button type="button" class="sp-theme-btn" data-theme-set="light" aria-pressed="false" title="Light mode"><?= icon('sun', 13) ?><span>Light</span></button>
+            <button type="button" class="sp-theme-btn" data-theme-set="dark" aria-pressed="false" title="Dark mode"><?= icon('moon', 13) ?><span>Dark</span></button>
+            <button type="button" class="sp-theme-btn" data-theme-set="system" aria-pressed="false" title="Follow device setting"><?= icon('monitor', 13) ?><span>Auto</span></button>
+          </div>
+        </div>
+        <div class="sp-sep" role="separator"></div>
         <a class="sp-item sp-danger" href="<?= BASE_URL ?>/logout.php">
           <?= icon('logout', 16) ?><span>Log out</span>
         </a>
@@ -169,6 +179,10 @@ $pageDesc = "{$site} - Community Assistance and Incident Reporting System for ba
     </form>
     <?php endif; ?>
     <div class="top-actions">
+      <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+        <span class="theme-ic-sun" aria-hidden="true"><?= icon('sun', 18) ?></span>
+        <span class="theme-ic-moon" aria-hidden="true"><?= icon('moon', 18) ?></span>
+      </button>
       <div class="notif-pop-wrap">
         <button type="button" class="icon-btn" id="notif-bell-btn" aria-haspopup="dialog" aria-expanded="false" aria-controls="notif-popover" aria-label="Notifications<?= $unread ? " ({$unread} unread)" : '' ?>">
           <?= icon('bell', 19) ?><?php if ($unread): ?><span class="count"><?= $unread ?></span><?php endif; ?>

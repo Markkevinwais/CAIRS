@@ -65,6 +65,10 @@ require __DIR__ . '/includes/header.php';
   <section class="auth-panel">
     <header class="auth-header">
       <a class="auth-back" href="<?= BASE_URL ?>/index.php"><?= icon('arrow-left', 16) ?><span>Back to home</span></a>
+      <button type="button" class="icon-btn theme-toggle" data-theme-toggle aria-label="Switch color theme" title="Switch color theme">
+        <span class="theme-ic-sun" aria-hidden="true"><?= icon('sun', 18) ?></span>
+        <span class="theme-ic-moon" aria-hidden="true"><?= icon('moon', 18) ?></span>
+      </button>
     </header>
     <div class="auth-panel-body">
       <div class="auth-card">

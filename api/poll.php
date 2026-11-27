@@ -31,4 +31,4 @@ if ($u['role'] === 'admin') {
     $out['sos_url'] = $last ? BASE_URL . '/admin/report_details.php?id=' . (int) $last['id'] : '';
 }
 
-echo json_encode($out);
+echo json_encode($out, JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
