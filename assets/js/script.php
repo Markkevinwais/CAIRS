@@ -32,20 +32,19 @@ header('X-Content-Type-Options: nosniff');
   var THEME_KEY = 'cairs_theme';
 
   function normalizeThemeMode(raw) {
-    return (raw === 'light' || raw === 'dark' || raw === 'system') ? raw : 'system';
+    return raw === 'dark' ? 'dark' : 'light';
   }
 
   function getStoredThemeMode() {
     try {
       return normalizeThemeMode(localStorage.getItem(THEME_KEY));
     } catch (_) {
-      return 'system';
+      return 'light';
     }
   }
 
   function resolveTheme(mode) {
-    if (mode === 'dark' || mode === 'light') return mode;
-    return (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+    return mode === 'dark' ? 'dark' : 'light';
   }
 
   function syncThemeUi() {
@@ -68,14 +67,12 @@ header('X-Content-Type-Options: nosniff');
       btn.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
 
-    var statusText = mode === 'system'
-      ? ('Auto · ' + (isDark ? 'Dark' : 'Light'))
-      : (isDark ? 'Dark Mode' : 'Light Mode');
+    var statusText = isDark ? 'Dark Mode' : 'Light Mode';
     $all('[data-theme-status]').forEach(function (el) {
       el.textContent = statusText;
     });
 
-    var noteText = 'Active palette: ' + (isDark ? 'Dark' : 'Light') + (mode === 'system' ? ' (synced with OS)' : '');
+    var noteText = 'Active palette: ' + (isDark ? 'Dark' : 'Light');
     $all('[data-theme-resolved-note]').forEach(function (el) {
       el.textContent = noteText;
     });
@@ -131,23 +128,9 @@ header('X-Content-Type-Options: nosniff');
       }
     });
 
-    if (window.matchMedia) {
-      var mq = window.matchMedia('(prefers-color-scheme: dark)');
-      var onMediaChange = function () {
-        if (getStoredThemeMode() === 'system') {
-          applyTheme('system');
-        }
-      };
-      if (typeof mq.addEventListener === 'function') {
-        mq.addEventListener('change', onMediaChange);
-      } else if (typeof mq.addListener === 'function') {
-        mq.addListener(onMediaChange);
-      }
-    }
-
     window.addEventListener('storage', function (e) {
       if (e.key === THEME_KEY) {
-        applyTheme(e.newValue || 'system');
+        applyTheme(e.newValue || 'light');
       }
     });
   }
@@ -657,7 +640,7 @@ header('X-Content-Type-Options: nosniff');
     toast.appendChild(icon);
     toast.appendChild(body);
     toast.appendChild(close);
-    bindToastDismiss(toast, timeout || (type === 'error' ? 9000 : 5000));
+    bindToastDismiss(toast, timeout || (type === 'error' ? 6500 : 4500));
     toastRegion().appendChild(toast);
     return body;
   }
@@ -668,7 +651,7 @@ header('X-Content-Type-Options: nosniff');
 
   function initToasts() {
     $all('.toast').forEach(function (toast) {
-      bindToastDismiss(toast, toast.classList.contains('error') ? 9000 : 5000);
+      bindToastDismiss(toast, toast.classList.contains('error') ? 6500 : 4500);
     });
     // Old-style inline success message (kept so nothing breaks)
     var inline = $('.flash.success:not(.toast)');
@@ -925,28 +908,21 @@ header('X-Content-Type-Options: nosniff');
       function finishOk(lat, lng, approximate, areaLabel) {
         restoreBtn();
         onFound(lat, lng, { approximate: !!approximate, label: areaLabel || '' });
-        if (approximate) {
-          var where = areaLabel ? ('near ' + areaLabel) : 'your network area';
-          showToast('Approximate location only (' + where + '). Browsers share exact GPS only over HTTPS \u2014 drag the pin or search to set the exact spot.', 'error', 12000);
-        } else {
-          showToast('Centered map on your current location.');
+        if (!approximate) {
+          showToast('Location pinned.', 'success', 3500);
         }
       }
 
       function showLookupError(err) {
         restoreBtn();
         var code = err && err.code;
-        var msg = 'Could not detect your location. Search a place above or click the map.';
-        if (!window.isSecureContext) {
-          msg = 'Exact GPS requires HTTPS and network lookup is unavailable. Search a place above or click the map.';
-        } else if (code === 1) {
-          msg = 'Location access is blocked in browser/site settings. Search a place above or click the map.';
-        } else if (code === 2) {
-          msg = 'Location unavailable on this device/browser. Search a place above or click the map.';
+        var msg = 'Location unavailable. Search a place above or click the map.';
+        if (code === 1) {
+          msg = 'Location permission is blocked. Search a place or click the map.';
         } else if (code === 3) {
-          msg = 'Location lookup timed out. Try again, search an address, or click the map.';
+          msg = 'Location lookup timed out. Search a place or click the map.';
         }
-        showToast(msg, 'error');
+        showToast(msg, 'error', 5500);
       }
 
       function fallbackToIp(gpsErr) {
@@ -1332,12 +1308,20 @@ header('X-Content-Type-Options: nosniff');
       });
 
       var locate = document.getElementById('locate');
+      var locateNote = picker.parentNode ? picker.parentNode.querySelector('.map-foot .muted') : null;
       if (locate) locate.addEventListener('click', function () {
         requestCurrentLocation(locate, function (lat, lng, meta) {
           var approximate = !!(meta && meta.approximate);
           setPin(lat, lng, !approximate);
           if (approximate) {
-            applyAutoRepPlace('Approximate area: ' + (meta.label || 'network location') + ' \u2014 drag the pin to the exact spot');
+            applyAutoRepPlace('Approximate area: ' + (meta.label || 'network location'));
+            if (locateNote) {
+              locateNote.textContent = 'Approximate area pinned \u2014 drag pin or search to set exact spot.';
+              locateNote.classList.add('is-approx');
+            }
+          } else if (locateNote) {
+            locateNote.textContent = 'Pinned to your current location. Drag pin if needed.';
+            locateNote.classList.remove('is-approx');
           }
           pickMap.setView([lat, lng], approximate ? 13 : 17);
         });
@@ -1616,13 +1600,21 @@ header('X-Content-Type-Options: nosniff');
       }, 'Search place or lat, lng...');
 
       var sLocate = document.getElementById('settings-locate');
+      var sBarNote = settingsEl.parentNode ? settingsEl.parentNode.querySelector('.settings-map-bar span') : null;
       if (sLocate) {
         sLocate.addEventListener('click', function () {
           requestCurrentLocation(sLocate, function (lat, lng, meta) {
             var approximate = !!(meta && meta.approximate);
             applySettingsCoords(lat, lng, false);
-            if (approximate && sReadout) {
-              sReadout.textContent = 'Approximate center: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' \u2014 verify on map';
+            if (approximate) {
+              if (sReadout) sReadout.textContent = 'Approximate center: ' + lat.toFixed(5) + ', ' + lng.toFixed(5) + ' \u2014 verify on map';
+              if (sBarNote) {
+                sBarNote.textContent = 'Approximate area pinned \u2014 drag the marker or search to verify.';
+                sBarNote.classList.add('is-approx');
+              }
+            } else if (sBarNote) {
+              sBarNote.textContent = 'Click map or drag pin to update latitude & longitude below.';
+              sBarNote.classList.remove('is-approx');
             }
             sMap.setView([lat, lng], approximate ? 12 : Math.max(sMap.getZoom(), 16));
           });

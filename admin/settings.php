@@ -170,10 +170,10 @@ require __DIR__ . '/../includes/header.php';
           <span class="setting-head-ic"><?= icon('sun', 19) ?></span>
           <div>
             <h2>Appearance &amp; Theme</h2>
-            <p>Choose how <?= e($siteName) ?> renders on this device—daylight light surfaces, low-glare dark mode, or automatic OS sync.</p>
+            <p>Choose how <?= e($siteName) ?> renders on this device—daylight light surfaces or low-glare dark mode.</p>
           </div>
         </div>
-        <span class="setting-tag is-on" data-theme-status>Auto</span>
+        <span class="setting-tag is-on" data-theme-status>Light Mode</span>
       </div>
       <div class="setting-body">
         <div class="theme-preset-grid" role="group" aria-label="Color theme preference">
@@ -207,23 +207,6 @@ require __DIR__ . '/../includes/header.php';
               <span class="tp-radio" aria-hidden="true"></span>
             </span>
             <span class="tp-desc">Deep slate surfaces tuned for low-light dispatch shifts.</span>
-          </button>
-
-          <button type="button" class="theme-preset-card" data-theme-set="system" aria-pressed="false">
-            <span class="tp-preview is-system" aria-hidden="true">
-              <span class="tp-half tp-half-light">
-                <span class="tp-rail"><i class="tp-brand"></i><i class="tp-nav is-on"></i><i class="tp-nav"></i></span>
-                <span class="tp-main"><span class="tp-bar"><i></i></span><span class="tp-card"><i></i><i class="tp-short"></i></span></span>
-              </span>
-              <span class="tp-half tp-half-dark">
-                <span class="tp-main"><span class="tp-bar"><i></i><i class="tp-dot"></i></span><span class="tp-card"><i></i><i class="tp-accent"></i></span></span>
-              </span>
-            </span>
-            <span class="tp-meta">
-              <span class="tp-title"><?= icon('monitor', 16) ?><strong>System Auto</strong></span>
-              <span class="tp-radio" aria-hidden="true"></span>
-            </span>
-            <span class="tp-desc">Follows your operating system light or dark schedule.</span>
           </button>
         </div>
       </div>
